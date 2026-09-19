@@ -15,6 +15,7 @@ from typing import Literal, Optional, List
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from google import genai
 from pydantic import BaseModel
 
@@ -58,6 +59,7 @@ class FrontendRequest(BaseModel):
     image_data: str
     action_type: Literal["check_logic", "get_hint"]
     is_selection: bool = False
+    hint_focus: Optional[Literal["start", "next_step", "rule", "direction"]] = None
 
 
 class MathTutorResponse(BaseModel):
@@ -65,6 +67,8 @@ class MathTutorResponse(BaseModel):
     status_message: str
     errors: List[ErrorItem] = []  # List of EVERY error found on the canvas (empty if completely correct)
     faint_hint: Optional[str] = None
+    hint_location_x: Optional[float] = None  # Normalized position of the work the hint addresses
+    hint_location_y: Optional[float] = None
     current_latex: str
 
 
@@ -118,17 +122,26 @@ SYSTEM_CHECK_LOGIC = (
 
 SYSTEM_GET_HINT = (
     "You are a fast, patient, Socratic university math Teaching Assistant specializing in Calculus, Discrete Proofs, and Linear Algebra.\n"
-    "A student is stuck on a math problem or proof.\n\n"
+    "A student is currently stuck while working through a math problem or proof. They want direction, not evaluation.\n\n"
+    "HINT MODE IS DISTINCT FROM CHECKING WORK:\n"
+    "- Do NOT grade the work, declare it correct or incorrect, list mistakes, or provide a full evaluation.\n"
+    "- Do NOT identify every issue on the page. Focus only on the most useful idea for the student's immediate next move.\n"
+    "- Treat incomplete work as an attempt in progress, not as a submitted solution.\n\n"
     "CRITICAL RULE — STRICTLY NO SPOILERS / NEVER GIVE THE ANSWER:\n"
     "- NEVER calculate the next step, evaluate the formula, or complete the proof argument.\n"
-    "- Provide only a concise, conceptual Socratic question pointing to the relevant theorem, definition, or strategy.\n\n"
+    "- NEVER reveal the final answer or write an expression that is effectively the missing next line.\n"
+    "- Provide one or two concise Socratic questions pointing toward a relevant definition, theorem, representation, or strategy.\n"
+    "- Start faintly. Prefer recalling a concept or asking what relationship applies before naming a procedure.\n\n"
     "FORMATTING REQUIREMENT:\n"
     "- ALWAYS format all mathematical terms, formulas, rules, and expressions using LaTeX notation enclosed in $...$ (inline) or $$...$$ (display).\n\n"
     "YOUR TASKS:\n"
     "1. Read their work carefully.\n"
-    "2. Identify the conceptual insight or lemma needed for their NEXT step.\n"
-    "3. In 'faint_hint', provide a FAINT, Socratic question that prompts them to remember the right concept.\n"
-    "4. In 'current_latex', provide a clean LaTeX transcription.\n"
+    "2. Infer where they are currently stuck and identify the conceptual insight needed for their NEXT step.\n"
+    "3. In 'faint_hint', provide the short, non-spoiling Socratic nudge.\n"
+    "4. In 'hint_location_x' and 'hint_location_y', provide the approximate normalized coordinates (0.05 to 0.95) of the exact work or problem the hint addresses.\n"
+    "5. Set 'is_correct_so_far' to true and 'errors' to [] because hint mode does not grade the attempt.\n"
+    "6. In 'status_message', briefly and neutrally say which part of the attempt the hint is addressing without judging correctness.\n"
+    "7. In 'current_latex', provide a clean LaTeX transcription.\n"
     "Return JSON conforming strictly to the response schema."
 )
 
@@ -162,6 +175,7 @@ SYSTEM_ANALYTICS = (
 # ──────────────────────────────────────────────────────────
 
 app = FastAPI(title="Calculus Copilot API")
+app.mount("/static", StaticFiles(directory=os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")), name="static")
 
 app.add_middleware(
     CORSMiddleware,
@@ -176,7 +190,13 @@ _client = None
 def get_client() -> genai.Client:
     global _client
     if _client is None:
-        key = get_api_key()
+        try:
+            key = get_api_key()
+        except RuntimeError:
+            raise HTTPException(
+                status_code=503,
+                detail="Your notebook is saved. To enable the tutor, configure GEMINI_API_KEY on the server and restart it.",
+            )
         _client = genai.Client(api_key=key)
     return _client
 
@@ -245,11 +265,26 @@ async def tutor(request: FrontendRequest):
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid base64 image data: {e}")
 
-    prompt_text = (
-        "Please evaluate the specific highlighted math problem or proof in this cropped image."
-        if request.is_selection
-        else "Please evaluate ALL handwritten and typed math problems/proofs visible on this canvas from top to bottom. If there are multiple errors, return an ErrorItem for each one in 'errors'."
-    )
+    if request.action_type == "get_hint":
+        hint_focus = {
+            "start": "The student does not know how to start. Orient them toward the first relevant definition, representation, or question without performing the first step.",
+            "next_step": "The student has started but is stuck on the next step. Ask a question that helps them choose what to do next without writing that step for them.",
+            "rule": "The student does not understand which rule or theorem is relevant. Help them recall and recognize the applicable idea without applying it for them.",
+            "direction": "The student wants to know whether their general direction is productive. Respond without grading individual steps or confirming the final answer.",
+        }.get(request.hint_focus, "")
+        prompt_text = (
+            "The student selected this region because they are stuck here. Give the faintest useful conceptual nudge for their next move without grading the work or revealing the next line."
+            if request.is_selection
+            else "The student is stuck on the work shown. Infer their current stopping point and give the faintest useful conceptual nudge for what to consider next. Do not grade the page or reveal the solution."
+        )
+        if hint_focus:
+            prompt_text += " " + hint_focus
+    else:
+        prompt_text = (
+            "Please evaluate the specific highlighted math problem or proof in this cropped image."
+            if request.is_selection
+            else "Please evaluate ALL handwritten and typed math problems/proofs visible on this canvas from top to bottom. If there are multiple errors, return an ErrorItem for each one in 'errors'."
+        )
 
     last_error = None
     client = get_client()

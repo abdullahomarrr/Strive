@@ -1,2018 +1,466 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
+  <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Calculus & Proofs Copilot — Active Learning Scratchpad</title>
-
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <meta name="theme-color" content="#243c50" />
+    <title>Strive — A little room to think</title>
+    <link rel="stylesheet" href="/static/app.css" />
+    <link rel="stylesheet" href="/static/paper-picker.css" />
+    <link rel="stylesheet" href="/static/analytics.css" />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Lora:ital,wght@0,500;1,400&display=swap"
       rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css"
     />
-
-    <!-- KaTeX for LaTeX Typesetting -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
-
-    <style>
-        /* ───────── Reset & Base ───────── */
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        html, body { height: 100%; overflow: hidden; }
-        :root {
-            --bg: #0f1117;
-            --surface: #1a1d27;
-            --surface-2: #242837;
-            --border: #2e3347;
-            --text: #e4e6f0;
-            --text-muted: #8b8fa8;
-            --primary: #4f8cff;
-            --primary-hover: #3a75e8;
-            --success: #34d399;
-            --success-bg: rgba(52, 211, 153, .12);
-            --warning: #fbbf24;
-            --warning-bg: rgba(251, 191, 36, .12);
-            --error: #f87171;
-            --error-bg: rgba(248, 113, 113, .12);
-            --purple: #a855f7;
-            --radius: 12px;
-            --radius-sm: 8px;
-        }
-
-        body {
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-        }
-
-        /* ───────── Top Bar ───────── */
-        .topbar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 8px 16px;
-            background: var(--surface);
-            border-bottom: 1px solid var(--border);
-            flex-shrink: 0;
-            z-index: 10;
-            gap: 10px;
-        }
-        .topbar-left {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-        .topbar-left h1 {
-            font-size: 1.02rem;
-            font-weight: 700;
-            letter-spacing: -0.02em;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-right: 2px;
-        }
-
-        /* Tool Segment */
-        .tool-group {
-            display: flex;
-            align-items: center;
-            gap: 3px;
-            background: var(--surface-2);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-sm);
-            padding: 3px;
-        }
-        .tool-btn {
-            font-family: 'Inter', sans-serif;
-            font-size: 0.76rem;
-            font-weight: 600;
-            border: none;
-            border-radius: 6px;
-            padding: 6px 10px;
-            cursor: pointer;
-            background: transparent;
-            color: var(--text-muted);
-            transition: all 0.15s;
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-        }
-        .tool-btn:hover { color: var(--text); background: rgba(255,255,255,0.04); }
-        .tool-btn.active {
-            background: var(--primary);
-            color: #fff;
-            box-shadow: 0 2px 8px rgba(79, 140, 255, 0.35);
-        }
-
-        /* Paper selector */
-        .paper-selector {
-            display: flex;
-            align-items: center;
-            gap: 3px;
-            background: var(--surface-2);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-sm);
-            padding: 3px;
-        }
-        .paper-btn {
-            font-family: 'Inter', sans-serif;
-            font-size: 0.74rem;
-            font-weight: 600;
-            border: none;
-            border-radius: 6px;
-            padding: 6px 9px;
-            cursor: pointer;
-            background: transparent;
-            color: var(--text-muted);
-            transition: all 0.15s;
-        }
-        .paper-btn:hover { color: var(--text); }
-        .paper-btn.active {
-            background: rgba(255,255,255,0.12);
-            color: #fff;
-        }
-
-        /* Topbar actions */
-        .topbar-right {
-            display: flex;
-            align-items: center;
-            gap: 7px;
-        }
-
-        .btn {
-            font-family: 'Inter', sans-serif;
-            font-size: 0.8rem;
-            font-weight: 600;
-            border: none;
-            border-radius: var(--radius-sm);
-            padding: 8px 14px;
-            cursor: pointer;
-            transition: background 0.15s, opacity 0.15s, transform 0.1s;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            white-space: nowrap;
-        }
-        .btn:active { transform: scale(0.97); }
-        .btn:disabled {
-            opacity: 0.45;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .btn-clear {
-            background: var(--surface-2);
-            color: var(--text-muted);
-            border: 1px solid var(--border);
-        }
-        .btn-clear:hover:not(:disabled) { background: var(--border); color: #fff; }
-
-        .btn-analytics {
-            background: rgba(168, 85, 247, 0.15);
-            color: #d8b4fe;
-            border: 1px solid rgba(168, 85, 247, 0.4);
-        }
-        .btn-analytics:hover:not(:disabled) {
-            background: rgba(168, 85, 247, 0.25);
-            color: #f3e8ff;
-        }
-        .btn-analytics .badge-count {
-            background: #a855f7;
-            color: #fff;
-            font-size: 0.68rem;
-            font-weight: 700;
-            padding: 1px 6px;
-            border-radius: 10px;
-        }
-
-        .btn-primary {
-            background: var(--primary);
-            color: #fff;
-        }
-        .btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
-
-        .btn-outline {
-            background: transparent;
-            color: var(--warning);
-            border: 1.5px solid var(--warning);
-        }
-        .btn-outline:hover:not(:disabled) {
-            background: var(--warning-bg);
-        }
-
-        /* ───────── Math & Proof Symbols Ribbon ───────── */
-        .symbols-bar {
-            display: none;
-            align-items: center;
-            gap: 4px;
-            background: #151822;
-            padding: 6px 14px;
-            border-bottom: 1px solid var(--border);
-            overflow-x: auto;
-            flex-shrink: 0;
-            z-index: 9;
-            scrollbar-width: none;
-        }
-        .symbols-bar.visible { display: flex; }
-        .symbols-bar-label {
-            font-size: 0.72rem;
-            font-weight: 700;
-            color: var(--primary);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-right: 6px;
-            white-space: nowrap;
-        }
-        .sym-btn {
-            background: var(--surface-2);
-            color: #d1d5db;
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 4px;
-            padding: 3px 8px;
-            font-size: 0.85rem;
-            font-family: 'JetBrains Mono', monospace;
-            cursor: pointer;
-            transition: all 0.12s;
-            white-space: nowrap;
-        }
-        .sym-btn:hover {
-            background: var(--primary);
-            color: #fff;
-            border-color: var(--primary);
-            transform: translateY(-1px);
-        }
-
-        /* ───────── Scrollable Canvas Workspace ───────── */
-        .canvas-scroll-container {
-            flex: 1;
-            overflow-y: auto;
-            overflow-x: hidden;
-            position: relative;
-            background: #0b0d13;
-            scrollbar-width: thin;
-            scrollbar-color: var(--border) transparent;
-        }
-        .canvas-scroll-container::-webkit-scrollbar { width: 8px; }
-        .canvas-scroll-container::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-
-        .canvas-wrapper {
-            position: relative;
-            width: 100%;
-            height: 2600px;
-            background: #ffffff;
-            margin: 0 auto;
-        }
-
-        canvas {
-            display: block;
-            width: 100%;
-            height: 100%;
-            touch-action: none;
-        }
-
-        /* Cursor modes */
-        .cursor-pen { cursor: crosshair; }
-        .cursor-eraser { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23ef4444' stroke-width='2'%3E%3Ccircle cx='12' cy='12' r='8' fill='rgba(239,68,68,0.2)'/%3E%3C/svg%3E") 12 12, cell; }
-        .cursor-type { cursor: text; }
-        .cursor-select { cursor: crosshair; }
-
-        /* ───────── Interactive Typed Text / Proof Block Overlay ───────── */
-        .typed-block {
-            position: absolute;
-            background: rgba(255, 255, 255, 0.96);
-            border: 1.5px solid #3b82f6;
-            border-radius: 6px;
-            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.18);
-            padding: 8px 10px;
-            z-index: 30;
-            min-width: 280px;
-            max-width: 720px;
-            animation: popin 0.15s ease-out;
-        }
-        .typed-block-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 6px;
-            font-size: 0.72rem;
-            color: #64748b;
-            font-weight: 600;
-        }
-        .typed-textarea {
-            width: 100%;
-            min-height: 80px;
-            border: 1px solid #cbd5e1;
-            border-radius: 4px;
-            padding: 8px;
-            font-family: 'Lora', Georgia, serif;
-            font-size: 1.05rem;
-            line-height: 1.55;
-            color: #0f172a;
-            outline: none;
-            resize: vertical;
-            background: #fff;
-        }
-        .typed-textarea:focus { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,0.2); }
-        .typed-block-actions {
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            gap: 6px;
-            margin-top: 6px;
-        }
-        .btn-commit-text {
-            background: #2563eb;
-            color: #fff;
-            border: none;
-            border-radius: 4px;
-            padding: 4px 10px;
-            font-size: 0.76rem;
-            font-weight: 600;
-            cursor: pointer;
-        }
-        .btn-commit-text:hover { background: #1d4ed8; }
-        .btn-del-text {
-            background: #f1f5f9;
-            color: #64748b;
-            border: 1px solid #cbd5e1;
-            border-radius: 4px;
-            padding: 4px 8px;
-            font-size: 0.76rem;
-            cursor: pointer;
-        }
-        .btn-del-text:hover { background: #fee2e2; color: #ef4444; }
-
-        .committed-text-box {
-            position: absolute;
-            font-family: 'Lora', Georgia, serif;
-            font-size: 1.05rem;
-            line-height: 1.55;
-            color: #0f172a;
-            padding: 4px 8px;
-            border-radius: 4px;
-            cursor: pointer;
-            z-index: 20;
-            user-select: text;
-            max-width: 750px;
-            background: rgba(255, 255, 255, 0.75);
-            border: 1px dashed transparent;
-            transition: border-color 0.15s, background 0.15s;
-        }
-        .committed-text-box:hover {
-            border-color: #93c5fd;
-            background: rgba(239, 246, 255, 0.85);
-        }
-
-        /* ───────── Selection Box ───────── */
-        .selection-box {
-            position: absolute;
-            display: none;
-            border: 2px dashed #4f8cff;
-            background: rgba(79, 140, 255, 0.08);
-            box-shadow: 0 0 0 1px rgba(79, 140, 255, 0.4), 0 4px 16px rgba(79, 140, 255, 0.18);
-            border-radius: 6px;
-            pointer-events: none;
-            z-index: 25;
-            transition: border-color 0.15s;
-        }
-        .selection-box.active {
-            animation: pulse-border 1.6s infinite;
-        }
-        @keyframes pulse-border {
-            0%, 100% { border-color: #4f8cff; }
-            50% { border-color: #93c5fd; }
-        }
-
-        .selection-label {
-            position: absolute;
-            top: -24px;
-            left: 0;
-            background: #2563eb;
-            color: #ffffff;
-            font-size: 0.68rem;
-            font-weight: 700;
-            padding: 2px 8px;
-            border-radius: 4px;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .selection-label .clear-sel-btn {
-            cursor: pointer;
-            pointer-events: auto;
-            font-size: 0.8rem;
-            background: none;
-            border: none;
-            color: #fff;
-            line-height: 1;
-        }
-
-        /* ───────── In-Place Multi-Error Markers ───────── */
-        .error-pins-layer {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 35;
-        }
-
-        .error-callout-anchor {
-            position: absolute;
-            pointer-events: auto;
-            animation: popin 0.22s ease-out;
-        }
-
-        .error-pin-dot {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            background: rgba(239, 68, 68, 0.95);
-            border: 3px solid #ffffff;
-            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.8), 0 4px 12px rgba(0, 0, 0, 0.4);
-            animation: pulse-ring 1.8s infinite;
-            position: absolute;
-            top: -12px;
-            left: -12px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #fff;
-            font-size: 0.68rem;
-            font-weight: 800;
-        }
-
-        @keyframes pulse-ring {
-            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.85), 0 4px 12px rgba(0,0,0,.4); }
-            70% { box-shadow: 0 0 0 16px rgba(239, 68, 68, 0), 0 4px 12px rgba(0,0,0,.4); }
-            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0), 0 4px 12px rgba(0,0,0,.4); }
-        }
-
-        .error-callout-card {
-            position: absolute;
-            top: -10px;
-            left: 26px;
-            width: 320px;
-            max-width: 85vw;
-            background: rgba(24, 18, 22, 0.96);
-            border: 1.5px solid rgba(248, 113, 113, 0.65);
-            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.65), 0 0 20px rgba(248, 113, 113, 0.2);
-            border-radius: var(--radius);
-            padding: 14px 16px;
-            color: #fce7e7;
-            font-size: 0.88rem;
-            line-height: 1.55;
-            backdrop-filter: blur(16px);
-        }
-
-        @keyframes popin {
-            from { opacity: 0; transform: scale(0.92); }
-            to { opacity: 1; transform: scale(1); }
-        }
-
-        .error-callout-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 8px;
-            padding-bottom: 6px;
-            border-bottom: 1px solid rgba(248, 113, 113, 0.25);
-        }
-        .error-callout-header .badge-group {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .error-callout-header .problem-tag {
-            font-size: 0.72rem;
-            font-weight: 700;
-            background: rgba(255, 255, 255, 0.12);
-            color: #fff;
-            padding: 2px 7px;
-            border-radius: 4px;
-        }
-        .error-callout-header .badge {
-            font-size: 0.68rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            background: #ef4444;
-            color: #fff;
-            padding: 2px 7px;
-            border-radius: 4px;
-            letter-spacing: 0.05em;
-        }
-        .error-callout-header .close-pin-btn {
-            background: transparent;
-            border: none;
-            color: #fca5a5;
-            font-size: 1.1rem;
-            cursor: pointer;
-            line-height: 1;
-            padding: 2px 6px;
-            border-radius: 4px;
-        }
-        .error-callout-header .close-pin-btn:hover { background: rgba(248, 113, 113, 0.2); color: #fff; }
-
-        .error-callout-body {
-            font-size: 0.86rem;
-            color: #fee2e2;
-        }
-
-        /* ───────── Floating Feedback Overlay ───────── */
-        .feedback-overlay {
-            position: fixed;
-            bottom: 24px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 90%;
-            max-width: 680px;
-            z-index: 40;
-            pointer-events: none;
-        }
-        .feedback-overlay > * { pointer-events: auto; }
-
-        .feedback-card {
-            display: none;
-            border-radius: var(--radius);
-            padding: 16px 20px;
-            font-size: 0.9rem;
-            line-height: 1.6;
-            border: 1px solid var(--border);
-            box-shadow: 0 10px 36px rgba(0,0,0,0.6);
-            backdrop-filter: blur(14px);
-        }
-        .feedback-card .fb-title {
-            font-weight: 600;
-            font-size: 0.94rem;
-            margin-bottom: 6px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        .feedback-card .dismiss-btn {
-            background: none;
-            border: none;
-            color: var(--text-muted);
-            cursor: pointer;
-            font-size: 1.1rem;
-            padding: 2px 6px;
-            border-radius: 4px;
-        }
-        .feedback-card .dismiss-btn:hover { color: var(--text); background: rgba(255,255,255,.08); }
-
-        /* Loading */
-        .feedback-card.loading {
-            background: rgba(26, 29, 39, .95);
-            color: var(--text-muted);
-            text-align: center;
-            padding: 22px;
-        }
-        .feedback-card.loading .spinner {
-            display: inline-block;
-            animation: pulse 1.2s ease-in-out infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { opacity: .35; }
-            50% { opacity: 1; }
-        }
-
-        /* Success */
-        .feedback-card.success {
-            background: rgba(13, 29, 23, 0.94);
-            border-color: rgba(52, 211, 153, .4);
-            color: #d1fae5;
-        }
-        .feedback-card.success .fb-title { color: var(--success); }
-
-        /* Hint */
-        .feedback-card.hint {
-            background: rgba(30, 24, 12, 0.94);
-            border-color: rgba(251, 191, 36, .4);
-            color: #fef3c7;
-        }
-        .feedback-card.hint .fb-title { color: var(--warning); }
-
-        /* Server Error */
-        .feedback-card.server-error {
-            background: rgba(32, 14, 14, 0.94);
-            border-color: rgba(248, 113, 113, .4);
-            color: #fee2e2;
-        }
-        .feedback-card.server-error .fb-title { color: var(--error); }
-
-        .katex { font-size: 1.05em; }
-
-        /* ───────── LaTeX Panel ───────── */
-        .latex-panel {
-            display: none;
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            z-index: 38;
-            background: var(--surface);
-            border-top: 1px solid var(--border);
-            box-shadow: 0 -4px 24px rgba(0,0,0,.45);
-            max-height: 220px;
-            overflow: hidden;
-        }
-        .latex-panel-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 8px 16px;
-            background: var(--surface-2);
-            border-bottom: 1px solid var(--border);
-            font-size: 0.8rem;
-            font-weight: 600;
-            color: var(--text-muted);
-        }
-        .latex-panel-header .latex-btns { display: flex; gap: 6px; }
-        .latex-panel-header .copy-btn,
-        .latex-panel-header .close-latex-btn {
-            font-family: 'Inter', sans-serif;
-            font-size: 0.74rem;
-            font-weight: 600;
-            border: none;
-            border-radius: 6px;
-            padding: 4px 12px;
-            cursor: pointer;
-            transition: background .15s;
-        }
-        .latex-panel-header .copy-btn {
-            background: var(--primary);
-            color: #fff;
-        }
-        .latex-panel-header .copy-btn:hover { background: var(--primary-hover); }
-        .latex-panel-header .close-latex-btn {
-            background: var(--surface-2);
-            color: var(--text-muted);
-            border: 1px solid var(--border);
-        }
-        .latex-panel-header .close-latex-btn:hover { background: var(--border); }
-        .latex-code {
-            padding: 12px 18px;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.82rem;
-            color: var(--text);
-            white-space: pre-wrap;
-            word-break: break-all;
-            line-height: 1.6;
-            overflow-y: auto;
-            max-height: 160px;
-        }
-
-        /* ───────── Analytics & Mastery Modal ───────── */
-        /* ───────── Analytics Modal (Widescreen Landscape) ───────── */
-        .modal-backdrop {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: rgba(0, 0, 0, 0.78);
-            backdrop-filter: blur(10px);
-            z-index: 50;
-            align-items: center;
-            justify-content: center;
-            padding: 24px;
-        }
-        .modal-backdrop.open { display: flex; }
-
-        .analytics-modal {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 18px;
-            width: 100%;
-            max-width: 1280px;
-            max-height: 88vh;
-            display: flex;
-            flex-direction: column;
-            box-shadow: 0 28px 70px rgba(0, 0, 0, 0.85);
-            overflow: hidden;
-            animation: popin 0.2s ease-out;
-        }
-
-        .modal-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 16px 28px;
-            border-bottom: 1px solid var(--border);
-            background: var(--surface-2);
-        }
-        .modal-header h2 {
-            font-size: 1.2rem;
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .modal-header .header-btns {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .modal-close-btn {
-            background: transparent;
-            border: none;
-            color: var(--text-muted);
-            font-size: 1.3rem;
-            cursor: pointer;
-            padding: 4px 10px;
-            border-radius: 6px;
-        }
-        .modal-close-btn:hover { background: rgba(255,255,255,0.08); color: #fff; }
-
-        .modal-body {
-            padding: 20px 28px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 18px;
-        }
-
-        /* Stats Bar (Landscape Row) */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 14px;
-        }
-        .stat-card {
-            background: var(--surface-2);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            padding: 14px 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-        .stat-card .stat-label {
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-        .stat-card .stat-val {
-            font-size: 1.7rem;
-            font-weight: 800;
-            color: #fff;
-        }
-        .stat-card.mastery .stat-val { color: var(--purple); }
-        .stat-card.accuracy .stat-val { color: var(--success); }
-
-        /* Landscape Main Split: Diagnostics on Left/Center, History on Right */
-        .analytics-landscape-grid {
-            display: grid;
-            grid-template-columns: 1.65fr 1fr;
-            gap: 20px;
-            align-items: start;
-        }
-        @media (max-width: 950px) {
-            .analytics-landscape-grid { grid-template-columns: 1fr; }
-            .stats-grid { grid-template-columns: 1fr; }
-        }
-
-        /* AI Diagnostic Cards */
-        .diag-section {
-            background: rgba(168, 85, 247, 0.06);
-            border: 1px solid rgba(168, 85, 247, 0.25);
-            border-radius: var(--radius);
-            padding: 18px 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 14px;
-        }
-        .diag-title {
-            font-size: 0.95rem;
-            font-weight: 700;
-            color: #e9d5ff;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .diag-summary-text {
-            font-size: 0.92rem;
-            line-height: 1.6;
-            color: #f3e8ff;
-            background: rgba(0,0,0,0.25);
-            padding: 12px 16px;
-            border-radius: 8px;
-            border-left: 3px solid var(--purple);
-        }
-
-        .analysis-columns {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 14px;
-        }
-
-        .points-box {
-            background: var(--surface-2);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-sm);
-            padding: 14px 16px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-        .points-box.strong { border-color: rgba(52, 211, 153, 0.35); }
-        .points-box.weak { border-color: rgba(248, 113, 113, 0.35); }
-        .points-box-title {
-            font-size: 0.82rem;
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-        }
-        .points-box.strong .points-box-title { color: var(--success); }
-        .points-box.weak .points-box-title { color: var(--error); }
-
-        .points-list {
-            list-style: none;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            font-size: 0.86rem;
-            color: #d1d5db;
-            line-height: 1.5;
-        }
-        .points-list li {
-            position: relative;
-            padding-left: 16px;
-        }
-        .points-list li::before {
-            content: "•";
-            position: absolute;
-            left: 2px;
-            color: var(--text-muted);
-        }
-
-        /* Pitfalls & Recommendations in 2 columns */
-        .bottom-diag-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 14px;
-        }
-
-        /* Pitfalls Card */
-        .pitfall-box {
-            background: rgba(251, 191, 36, 0.06);
-            border: 1px solid rgba(251, 191, 36, 0.25);
-            border-radius: var(--radius-sm);
-            padding: 14px 16px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-        .pitfall-box-title {
-            font-size: 0.82rem;
-            font-weight: 700;
-            color: var(--warning);
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-        }
-
-        /* History Log Pane */
-        .history-section {
-            background: var(--surface-2);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            padding: 16px 18px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            max-height: 520px;
-        }
-        .history-section-title {
-            font-size: 0.84rem;
-            font-weight: 700;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        .history-list {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            overflow-y: auto;
-            padding-right: 4px;
-        }
-        .history-item {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 12px 14px;
-            display: flex;
-            flex-direction: column;
-            font-size: 0.84rem;
-            gap: 6px;
-        }
-        .history-item-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        .history-item.pass { border-left: 4px solid var(--success); }
-        .history-item.fail { border-left: 4px solid var(--error); }
-        .history-item-time { font-size: 0.72rem; color: var(--text-muted); font-weight: 600; }
-        .history-item-math { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: var(--text); word-break: break-word; }
-        .history-status-tag {
-            font-weight: 700;
-            font-size: 0.72rem;
-            padding: 2px 8px;
-            border-radius: 4px;
-            white-space: nowrap;
-        }
-        .history-status-tag.pass { background: rgba(52, 211, 153, 0.15); color: var(--success); }
-        .history-status-tag.fail { background: rgba(248, 113, 113, 0.15); color: var(--error); }
-
-        .modal-footer {
-            padding: 14px 28px;
-            background: var(--surface-2);
-            border-top: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-    </style>
-</head>
-<body>
-
-    <!-- ═══════ Top Bar ═══════ -->
-    <div class="topbar">
-        <div class="topbar-left">
-            <h1><span class="icon">📐</span> Calculus & Proofs Copilot</h1>
-            
-            <!-- Tool Switcher -->
-            <div class="tool-group">
-                <button class="tool-btn active" id="toolPen" title="Handwrite math & derivations">✏️ Pen</button>
-                <button class="tool-btn" id="toolEraser" title="Erase handwriting">🧹 Eraser</button>
-                <button class="tool-btn" id="toolType" title="Type proofs, justifications, or equations">🔤 Type Proof</button>
-                <button class="tool-btn" id="toolSelect" title="Highlight a specific question to check">🔲 Highlight Problem</button>
-            </div>
-
-            <!-- Paper Style Selector -->
-            <div class="paper-selector">
-                <button class="paper-btn active" data-paper="blank">Blank</button>
-                <button class="paper-btn" data-paper="grid">Grid</button>
-                <button class="paper-btn" data-paper="lined">Lined (Proofs)</button>
-            </div>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"
+    ></script>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+    ></script>
+    <script defer src="/static/app.js"></script>
+    <script defer src="/static/paper-picker.js"></script>
+    <script defer src="/static/selects.js"></script>
+    <script defer src="/static/analytics.js"></script>
+  </head>
+  <body>
+    <div id="app">
+      <header class="tabbar">
+        <button
+          class="brand"
+          id="homeButton"
+          title="Notebook library"
+          aria-label="Notebook library"
+        >
+          <span class="brand-mark" data-icon="brand"></span
+          ><span>strive<span class="brand-dot">.</span></span>
+        </button>
+        <div
+          id="notebookTabs"
+          class="notebook-tabs"
+          role="tablist"
+          aria-label="Open notebooks"
+        ></div>
+        <button
+          class="icon-button tab-add"
+          id="newNotebookTop"
+          aria-label="New notebook"
+          title="New notebook"
+          data-icon="plus"
+        ></button>
+        <span class="app-caption">A LITTLE ROOM TO THINK</span>
+      </header>
+      <main id="library" class="library">
+        <div class="library-top">
+          <div class="eyebrow">YOUR WORKSPACE</div>
+          <span class="local-note"
+            ><i data-icon="device"></i> Saved on this device</span
+          >
         </div>
-
-        <div class="topbar-right">
-            <button class="btn btn-analytics" id="btnOpenAnalytics" title="View your strengths, weak spots, and AI mastery diagnostics">
-                📊 Mastery Analytics <span class="badge-count" id="historyBadge">0</span>
+        <div class="library-heading">
+          <div>
+            <h1>Good things start<br />on a blank page.</h1>
+            <p>A place for your workings, wonderings, and next big idea.</p>
+          </div>
+          <button class="button primary" id="newNotebook">
+            <i data-icon="plus"></i> New notebook
+          </button>
+        </div>
+        <div class="library-section">
+          <div>
+            <h2>Your notebooks <span id="notebookCount"></span></h2>
+            <p>Pick up where your thinking left off.</p>
+          </div>
+          <span class="library-sort"
+            >Recently opened <i data-icon="chevronDown"></i
+          ></span>
+        </div>
+        <div id="notebookGrid" class="notebook-grid"></div>
+        <div class="library-footer">
+          <span class="footer-mark" data-icon="brand"></span>
+          <p>
+            Think on paper. Find your own way.<br /><span
+              >Your math companion is here when you need a nudge.</span
+            >
+          </p>
+          <span class="footer-label">CALCULUS & PROOFS COPILOT</span>
+        </div>
+      </main>
+      <section id="editor" class="editor" hidden>
+        <header class="document-bar">
+          <div class="document-info">
+            <button
+              id="togglePages"
+              class="icon-button"
+              title="Show pages"
+              aria-label="Show pages"
+              aria-expanded="true"
+              data-icon="sidebar"
+            ></button
+            ><span class="divider"></span
+            ><button
+              id="renameNotebook"
+              class="document-name"
+              title="Rename notebook"
+            >
+              <span id="documentTitle"></span
+              ><i data-icon="chevronDown"></i></button
+            ><span id="saveStatus" class="save-status"
+              >Saved on this device</span
+            >
+          </div>
+          <div class="document-actions">
+            <button class="button quiet" id="openMastery">
+              <i data-icon="chart"></i><span>Progress</span></button
+            ><span class="divider"></span
+            ><button class="button check-button" id="checkWork">
+              <i data-icon="checkCircle"></i><span>Check work</span></button
+            ><button
+              class="button tutor-button"
+              id="toggleTutor"
+              aria-expanded="false"
+            >
+              <span>Get a hint</span>
             </button>
-            <button class="btn btn-clear" id="btnClear">🗑️ Clear Canvas</button>
-            <button class="btn btn-primary" id="btnCheck">✅ Am I on track?</button>
-            <button class="btn btn-outline" id="btnHint">💡 Need a Hint</button>
-        </div>
-    </div>
-
-    <!-- ═══════ Quick Math & Proof Symbol Insert Ribbon ═══════ -->
-    <div class="symbols-bar" id="symbolsBar">
-        <span class="symbols-bar-label">Insert Symbol:</span>
-        <button class="sym-btn" data-sym="∀">∀ forall</button>
-        <button class="sym-btn" data-sym="∃">∃ exists</button>
-        <button class="sym-btn" data-sym="∈">∈</button>
-        <button class="sym-btn" data-sym="∉">∉</button>
-        <button class="sym-btn" data-sym="⊆">⊆ subset</button>
-        <button class="sym-btn" data-sym="⟹">⟹ implies</button>
-        <button class="sym-btn" data-sym="⟺">⟺ iff</button>
-        <button class="sym-btn" data-sym="∧">∧ and</button>
-        <button class="sym-btn" data-sym="∨">∨ or</button>
-        <button class="sym-btn" data-sym="¬">¬ not</button>
-        <button class="sym-btn" data-sym="∴">∴ therefore</button>
-        <button class="sym-btn" data-sym="∵">∵ because</button>
-        <button class="sym-btn" data-sym="ℝ">ℝ real</button>
-        <button class="sym-btn" data-sym="ℤ">ℤ int</button>
-        <button class="sym-btn" data-sym="ℕ">ℕ nat</button>
-        <button class="sym-btn" data-sym="≡">≡</button>
-        <button class="sym-btn" data-sym="≠">≠</button>
-        <button class="sym-btn" data-sym="≤">≤</button>
-        <button class="sym-btn" data-sym="≥">≥</button>
-        <button class="sym-btn" data-sym="∑">∑</button>
-        <button class="sym-btn" data-sym="∫">∫</button>
-        <button class="sym-btn" data-sym="∂">∂</button>
-        <button class="sym-btn" data-sym="lim_{x → 0}">lim</button>
-        <button class="sym-btn" data-sym="∞">∞</button>
-        <button class="sym-btn" data-sym="■ Q.E.D.">■ Q.E.D.</button>
-    </div>
-
-    <!-- ═══════ Scrollable Workspace ═══════ -->
-    <div class="canvas-scroll-container" id="scrollContainer">
-        <div class="canvas-wrapper cursor-pen" id="canvasWrapper">
-            <canvas id="bgCanvas"></canvas>
-            <canvas id="mathCanvas" style="position:absolute;top:0;left:0;"></canvas>
-
-            <!-- Committed Typed Text Elements Layer -->
-            <div id="textBlocksLayer" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:22;"></div>
-
-            <!-- Active Typing Box Popover -->
-            <div class="typed-block" id="activeTypeBlock" style="display:none;">
-                <div class="typed-block-header">
-                    <span>🔤 Type Math Proof / Step</span>
+          </div>
+        </header>
+        <div class="editor-body">
+          <aside id="pagesRail" class="pages-rail">
+            <div class="rail-heading">
+              <span>PAGES</span><span id="pageCount"></span>
+            </div>
+            <div id="pageList" class="page-list"></div>
+            <button class="add-page" id="addPage">
+              <i data-icon="plus"></i> Add page
+            </button>
+            <div class="paper-control">
+              <label for="paperStyle">PAPER STYLE</label
+              ><select id="paperStyle">
+                <option value="blank">Plain paper</option>
+                <option value="grid">Squared paper</option>
+                <option value="lined">Ruled paper</option>
+                <option value="dotted">Dotted paper</option>
+              </select>
+            </div>
+          </aside>
+          <div class="desk-column">
+            <div class="tools-dock">
+              <div class="toolbar" role="toolbar" aria-label="Writing tools">
+                <div class="tool-set" id="drawingTools">
+                  <button
+                    class="tool active"
+                    data-tool="pen"
+                    title="Pen (P)"
+                    aria-label="Pen"
+                    aria-pressed="true"
+                    data-icon="pen"
+                  ></button>
+                  <button
+                    class="tool"
+                    data-tool="highlighter"
+                    title="Highlighter (H)"
+                    aria-label="Highlighter"
+                    aria-pressed="false"
+                    data-icon="highlighter"
+                  ></button>
+                  <button
+                    class="tool"
+                    data-tool="eraser"
+                    title="Eraser (E)"
+                    aria-label="Eraser"
+                    aria-pressed="false"
+                    data-icon="eraser"
+                  ></button>
+                  <button
+                    class="tool"
+                    data-tool="select"
+                    title="Select region (S)"
+                    aria-label="Select region"
+                    aria-pressed="false"
+                    data-icon="select"
+                  ></button>
+                  <button
+                    class="tool"
+                    data-tool="text"
+                    title="Text (T)"
+                    aria-label="Text"
+                    aria-pressed="false"
+                    data-icon="text"
+                  ></button>
+                  <button
+                    class="tool"
+                    data-tool="hand"
+                    title="Pan (V), or hold Space"
+                    aria-label="Pan"
+                    aria-pressed="false"
+                    data-icon="hand"
+                  ></button>
                 </div>
-                <textarea class="typed-textarea" id="typedInput" placeholder="Type proof step, e.g.:&#10;Base case: For n=1, LHS = 1(2)/2 = 1. RHS = 1. Base case holds.&#10;Inductive step: Assume true for n=k..."></textarea>
-                <div class="typed-block-actions">
-                    <button class="btn-del-text" id="btnCancelType">Cancel</button>
-                    <button class="btn-commit-text" id="btnCommitType">✓ Place on Canvas</button>
+                <span class="divider"></span>
+                <div class="width-options" id="widthOptions">
+                  <button
+                    class="width-button active"
+                    data-width="2"
+                    title="Fine stroke"
+                    aria-label="Fine stroke"
+                  >
+                    <span style="height: 2px"></span></button
+                  ><button
+                    class="width-button"
+                    data-width="4"
+                    title="Medium stroke"
+                    aria-label="Medium stroke"
+                  >
+                    <span style="height: 4px"></span></button
+                  ><button
+                    class="width-button"
+                    data-width="7"
+                    title="Bold stroke"
+                    aria-label="Bold stroke"
+                  >
+                    <span style="height: 7px"></span>
+                  </button>
                 </div>
-            </div>
-
-            <!-- Selection Box Overlay -->
-            <div class="selection-box" id="selectionBox">
-                <div class="selection-label">
-                    <span>Highlighted Problem</span>
-                    <button class="clear-sel-btn" id="btnClearSel" title="Clear selection">✕</button>
+                <div class="color-options" id="colorOptions"></div>
+                <select
+                  id="textSize"
+                  title="Text size"
+                  aria-label="Text size"
+                  hidden
+                >
+                  <option value="20">20 px</option>
+                  <option value="26">26 px</option>
+                  <option value="34">34 px</option></select
+                ><span class="divider"></span
+                ><button
+                  class="icon-button"
+                  id="undo"
+                  title="Undo (Ctrl/⌘ Z)"
+                  aria-label="Undo"
+                  data-icon="undo"
+                ></button
+                ><button
+                  class="icon-button"
+                  id="redo"
+                  title="Redo (Ctrl/⌘ Shift Z)"
+                  aria-label="Redo"
+                  data-icon="redo"
+                ></button>
+              </div>
+              <div
+                id="toolSettingsPopover"
+                class="tool-settings-popover"
+                hidden
+              >
+                <div class="tool-settings-header">
+                  <div>
+                    <span class="eyebrow">TOOL SETTINGS</span>
+                    <h3 id="toolSettingsTitle">Pen</h3>
+                  </div>
+                  <button
+                    id="closeToolSettings"
+                    class="icon-button"
+                    aria-label="Close tool settings"
+                    data-icon="close"
+                  ></button>
                 </div>
+                <div id="penSettings" class="tool-settings-body">
+                  <div
+                    class="pen-style-options"
+                    role="group"
+                    aria-label="Pen style"
+                  >
+                    <button class="pen-style active" data-pen-style="fountain">
+                      <span class="pen-sample fountain"></span>Fountain
+                    </button>
+                    <button class="pen-style" data-pen-style="ball">
+                      <span class="pen-sample ball"></span>Ball pen
+                    </button>
+                    <button class="pen-style" data-pen-style="brush">
+                      <span class="pen-sample brush"></span>Brush
+                    </button>
+                  </div>
+                  <label class="tool-setting-row"
+                    ><span
+                      >Stroke stabilization
+                      <output id="stabilizationValue">25%</output></span
+                    ><input
+                      id="stabilizationSetting"
+                      type="range"
+                      min="0"
+                      max="75"
+                      value="25"
+                  /></label>
+                  <label class="tool-setting-row"
+                    ><span
+                      >Pressure response
+                      <output id="pressureValue">50%</output></span
+                    ><input
+                      id="pressureSetting"
+                      type="range"
+                      min="0"
+                      max="100"
+                      value="50"
+                  /></label>
+                </div>
+                <div id="highlighterSettings" class="tool-settings-body" hidden>
+                  <div class="highlighter-preview"><span></span></div>
+                  <label class="tool-setting-row"
+                    ><span
+                      >Ink opacity <output id="opacityValue">25%</output></span
+                    ><input
+                      id="opacitySetting"
+                      type="range"
+                      min="10"
+                      max="60"
+                      value="25"
+                  /></label>
+                  <label class="setting-toggle"
+                    ><input id="straightHighlighter" type="checkbox" /><span
+                      >Snap to a straight line</span
+                    ></label
+                  >
+                </div>
+              </div>
+              <div id="toolHint" class="tool-hint">
+                A blank page. A fresh perspective.
+              </div>
             </div>
-
-            <!-- Dynamic Multi-Error Pins Container -->
-            <div class="error-pins-layer" id="errorPinsLayer"></div>
+            <div id="viewport" class="viewport">
+              <div id="pageStage" class="page-stage">
+                <div id="paper" class="paper">
+                  <canvas
+                    id="pageCanvas"
+                    aria-label="Notebook page. Select Text to type or Pen to draw."
+                  ></canvas>
+                  <div id="errorPins" class="error-pins"></div>
+                  <div id="selection" class="selection" hidden></div>
+                  <div id="textEditor" class="text-editor" hidden>
+                    <textarea
+                      id="textInput"
+                      aria-label="Write a proof or equation"
+                    ></textarea>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="workspace-bottom">
+              <span id="pageIndicator">PAGE 1 OF 1</span
+              ><button
+                id="clearPage"
+                class="subtle-button"
+                title="Clear current page"
+              >
+                <i data-icon="trash"></i> Clear page
+              </button>
+              <div class="zoom-controls">
+                <button
+                  id="zoomOut"
+                  aria-label="Zoom out"
+                  title="Zoom out"
+                  data-icon="minus"
+                ></button
+                ><button id="zoomReset" title="Reset to 100%">100%</button
+                ><button
+                  id="zoomIn"
+                  aria-label="Zoom in"
+                  title="Zoom in"
+                  data-icon="plus"
+                ></button
+                ><span class="divider"></span
+                ><button
+                  id="zoomFit"
+                  aria-label="Fit page width"
+                  title="Fit page width"
+                  data-icon="fit"
+                ></button>
+              </div>
+            </div>
+          </div>
+          <aside id="tutorPanel" class="tutor-panel" hidden>
+            <div class="panel-heading">
+              <div>
+                <span class="eyebrow" id="panelEyebrow"
+                  >A SECOND PAIR OF EYES</span
+                >
+                <h2 id="panelTitle">Your tutor</h2>
+              </div>
+              <button
+                id="closeTutor"
+                class="icon-button"
+                aria-label="Close tutor"
+                data-icon="close"
+              ></button>
+            </div>
+            <div class="panel-tabs">
+              <button class="active" data-panel="feedback">Guidance</button
+              ><button data-panel="progress">Your progress</button>
+            </div>
+            <div id="feedbackView" class="panel-content">
+              <div id="feedbackContent"></div>
+              <button id="getHint" class="button hint-button">
+                Give me a nudge
+              </button>
+            </div>
+            <div id="progressView" class="panel-content" hidden>
+              <div id="progressContent"></div>
+              <button
+                id="analyzeProgress"
+                class="button progress-analyze-button"
+              >
+                <i data-icon="chart"></i> Analyze my practice
+              </button>
+            </div>
+            <div class="panel-footer">
+              <i data-icon="spark"></i> A little guidance. Your own
+              understanding.
+            </div>
+          </aside>
         </div>
+      </section>
     </div>
-
-    <!-- ═══════ Fixed Viewport Feedback & Alerts ═══════ -->
-    <div class="feedback-overlay">
-        <div class="feedback-card loading" id="fbLoading">
-            <span class="spinner">🧠 Checking your mathematical steps & proofs…</span>
+    <dialog id="notebookDialog">
+      <form id="notebookForm">
+        <div class="dialog-heading">
+          <div>
+            <span class="eyebrow">MAKE SPACE FOR AN IDEA</span>
+            <h2 id="dialogTitle">A new notebook</h2>
+          </div>
+          <button
+            type="button"
+            id="closeDialog"
+            class="icon-button"
+            aria-label="Close"
+            data-icon="close"
+          ></button>
         </div>
-        <div class="feedback-card success" id="fbSuccess">
-            <div class="fb-title">
-                <span>✅ Logic & Proof Evaluation</span>
-                <button class="dismiss-btn" onclick="hideAll()">✕</button>
-            </div>
-            <div id="successMsg"></div>
+        <label for="notebookName">Notebook name</label
+        ><input
+          id="notebookName"
+          placeholder="e.g. Calculus I"
+          maxlength="60"
+          required
+          autocomplete="off"
+        /><label>Cover colour</label>
+        <div id="coverColors" class="cover-colors"></div>
+        <label for="newPaper">Start with</label
+        ><select id="newPaper">
+          <option value="blank">Plain paper</option>
+          <option value="grid">Squared paper</option>
+          <option value="lined">Ruled paper</option>
+          <option value="dotted">Dotted paper</option>
+        </select>
+        <div class="dialog-footer">
+          <button type="button" id="cancelDialog" class="button quiet">
+            Cancel</button
+          ><button type="submit" class="button primary" id="saveNotebook">
+            Create notebook <i data-icon="arrowRight"></i>
+          </button>
         </div>
-        <div class="feedback-card hint" id="fbHint">
-            <div class="fb-title">
-                <span>💡 TA Conceptual Hint</span>
-                <button class="dismiss-btn" onclick="hideAll()">✕</button>
-            </div>
-            <div id="hintMsg"></div>
-        </div>
-        <div class="feedback-card server-error" id="fbServerError">
-            <div class="fb-title">
-                <span>🔌 Notice</span>
-                <button class="dismiss-btn" onclick="hideAll()">✕</button>
-            </div>
-            <div id="serverErrorMsg"></div>
-        </div>
-    </div>
-
-    <!-- LaTeX Panel -->
-    <div class="latex-panel" id="latexPanel">
-        <div class="latex-panel-header">
-            <span>📄 LaTeX Translation — ready for Overleaf</span>
-            <div class="latex-btns">
-                <button class="copy-btn" id="btnCopyLatex">Copy</button>
-                <button class="close-latex-btn" id="btnCloseLatex">✕ Close</button>
-            </div>
-        </div>
-        <div class="latex-code" id="latexCode"></div>
-    </div>
-
-    <!-- ═══════ Mastery & Analytics Modal ═══════ -->
-    <div class="modal-backdrop" id="analyticsModal">
-        <div class="analytics-modal">
-            <div class="modal-header">
-                <h2><span>📊</span> Mathematical Mastery & Diagnostics</h2>
-                <div class="header-btns">
-                    <button class="modal-close-btn" id="btnCloseAnalytics">✕</button>
-                </div>
-            </div>
-
-            <div class="modal-body">
-                <!-- Stats Overview (Landscape Top Bar) -->
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <span class="stat-label">Total Checks</span>
-                        <span class="stat-val" id="statTotalChecks">0</span>
-                    </div>
-                    <div class="stat-card accuracy">
-                        <span class="stat-label">Accuracy Rate</span>
-                        <span class="stat-val" id="statAccuracy">100%</span>
-                    </div>
-                    <div class="stat-card mastery">
-                        <span class="stat-label">AI Mastery Score</span>
-                        <span class="stat-val" id="statMasteryScore">--</span>
-                    </div>
-                </div>
-
-                <!-- Landscape Main Split (Diagnostics Left, Practice History Right) -->
-                <div class="analytics-landscape-grid">
-                    <!-- Left Side: AI Deep Diagnostic -->
-                    <div class="diag-section">
-                        <div class="diag-title"><span>🧠</span> AI Learning Diagnostic</div>
-                        <div class="diag-summary-text" id="diagSummary">
-                            Click "Generate Full AI Analysis" to synthesize all your practice attempts into a detailed breakdown of your strengths, blindspots, and recommended next steps.
-                        </div>
-
-                        <!-- Strengths vs Weaknesses -->
-                        <div class="analysis-columns">
-                            <div class="points-box strong">
-                                <div class="points-box-title">🟢 Confirmed Strengths</div>
-                                <ul class="points-list" id="diagStrengths">
-                                    <li>Accuracy and logic across completed problem steps.</li>
-                                </ul>
-                            </div>
-                            <div class="points-box weak">
-                                <div class="points-box-title">🔴 Areas to Improve</div>
-                                <ul class="points-list" id="diagWeaknesses">
-                                    <li>No major weak spots logged yet.</li>
-                                </ul>
-                            </div>
-                        </div>
-
-                        <!-- Recurring Pitfalls & High-Yield Advice (Side-by-side Row) -->
-                        <div class="bottom-diag-row">
-                            <!-- Recurring Pitfalls -->
-                            <div class="pitfall-box" id="pitfallBox" style="display:none;">
-                                <div class="pitfall-box-title">⚠️ Recurring Pitfalls & Habits</div>
-                                <ul class="points-list" id="diagPitfalls"></ul>
-                            </div>
-
-                            <!-- Actionable Recommendations -->
-                            <div class="points-box" style="border-color: rgba(79, 140, 255, 0.35);" id="adviceBox" style="display:none;">
-                                <div class="points-box-title" style="color:var(--primary);">🎯 High-Yield Next Steps</div>
-                                <ul class="points-list" id="diagAdvice"></ul>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Right Side: Session Practice History -->
-                    <div class="history-section">
-                        <div class="history-section-title">
-                            <span>Session History Log</span>
-                            <span style="font-size:0.7rem;color:var(--text-muted);font-weight:normal;">Real-time feed</span>
-                        </div>
-                        <div class="history-list" id="historyList">
-                            <div style="font-size:0.85rem;color:var(--text-muted);text-align:center;padding:14px;">No math attempts logged in this session yet.</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="modal-footer">
-                <button class="btn btn-clear" id="btnClearHistory">🗑️ Reset History</button>
-                <button class="btn btn-primary" id="btnRefreshDiagnostics">✨ Generate Full AI Analysis</button>
-            </div>
-        </div>
-    </div>
-
-
-    <!-- ═══════════════════════════════════════════════════
-         JavaScript
-         ═══════════════════════════════════════════════════ -->
-    <script>
-    (() => {
-        // ──────── KaTeX Helper ────────
-        function renderMathInElem(element) {
-            if (!element) return;
-            if (window.renderMathInElement) {
-                window.renderMathInElement(element, {
-                    delimiters: [
-                        { left: '$$', right: '$$', display: true },
-                        { left: '$', right: '$', display: false },
-                        { left: '\\(', right: '\\)', display: false },
-                        { left: '\\[', right: '\\]', display: true }
-                    ],
-                    throwOnError: false
-                });
-            }
-        }
-
-        // ──────── Local Practice History Store ────────
-        const HISTORY_KEY = 'calculus_copilot_history_v1';
-
-        function getHistory() {
-            try {
-                return JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
-            } catch {
-                return [];
-            }
-        }
-
-        function saveHistoryRecord(record) {
-            const hist = getHistory();
-            hist.push(record);
-            localStorage.setItem(HISTORY_KEY, JSON.stringify(hist));
-            updateHistoryBadge();
-        }
-
-        function clearHistoryStore() {
-            localStorage.removeItem(HISTORY_KEY);
-            updateHistoryBadge();
-            renderHistoryModal();
-        }
-
-        function updateHistoryBadge() {
-            const hist = getHistory();
-            document.getElementById('historyBadge').textContent = hist.length;
-        }
-
-        // ──────── DOM Elements ────────
-        const scrollContainer = document.getElementById('scrollContainer');
-        const canvasWrapper   = document.getElementById('canvasWrapper');
-        const canvas          = document.getElementById('mathCanvas');
-        const bgCanvas        = document.getElementById('bgCanvas');
-        const ctx             = canvas.getContext('2d');
-        const bgCtx           = bgCanvas.getContext('2d');
-
-        const toolPen         = document.getElementById('toolPen');
-        const toolEraser      = document.getElementById('toolEraser');
-        const toolType        = document.getElementById('toolType');
-        const toolSelect      = document.getElementById('toolSelect');
-        const symbolsBar      = document.getElementById('symbolsBar');
-
-        const activeTypeBlock = document.getElementById('activeTypeBlock');
-        const typedInput      = document.getElementById('typedInput');
-        const btnCommitType   = document.getElementById('btnCommitType');
-        const btnCancelType   = document.getElementById('btnCancelType');
-        const textBlocksLayer = document.getElementById('textBlocksLayer');
-
-        const selectionBox    = document.getElementById('selectionBox');
-        const btnClearSel     = document.getElementById('btnClearSel');
-        const errorPinsLayer  = document.getElementById('errorPinsLayer');
-
-        const btnClear        = document.getElementById('btnClear');
-        const btnCheck        = document.getElementById('btnCheck');
-        const btnHint         = document.getElementById('btnHint');
-        const fbLoading       = document.getElementById('fbLoading');
-        const fbSuccess       = document.getElementById('fbSuccess');
-        const fbHint          = document.getElementById('fbHint');
-        const fbServerErr     = document.getElementById('fbServerError');
-        const latexPanel      = document.getElementById('latexPanel');
-        const latexCode       = document.getElementById('latexCode');
-        const btnCopyLatex    = document.getElementById('btnCopyLatex');
-        const btnCloseLatex   = document.getElementById('btnCloseLatex');
-        const successMsg      = document.getElementById('successMsg');
-        const hintMsg         = document.getElementById('hintMsg');
-
-        // Analytics Modal Elements
-        const analyticsModal  = document.getElementById('analyticsModal');
-        const btnOpenAnalytics= document.getElementById('btnOpenAnalytics');
-        const btnCloseAnalytics= document.getElementById('btnCloseAnalytics');
-        const btnClearHistory = document.getElementById('btnClearHistory');
-        const btnRefreshDiag  = document.getElementById('btnRefreshDiagnostics');
-
-        let currentMode       = 'pen'; // 'pen' | 'eraser' | 'type' | 'select'
-        let currentPaper      = 'blank'; // 'blank' | 'grid' | 'lined'
-
-        let activeSelection   = null;
-        let selectStart       = null;
-        let activeTypePos     = { x: 80, y: 100 };
-        let editingTextBlock  = null;
-
-        let maxDrawnY         = 600;
-        const VIRTUAL_HEIGHT  = 2600;
-
-        // ──────── Canvas Setup & DPI Scaling ────────
-        function resizeCanvases() {
-            const w = canvasWrapper.clientWidth;
-            const h = VIRTUAL_HEIGHT;
-            const dpr = window.devicePixelRatio || 1;
-
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = canvas.width;
-            tempCanvas.height = canvas.height;
-            if (canvas.width > 0 && canvas.height > 0) {
-                tempCanvas.getContext('2d').drawImage(canvas, 0, 0);
-            }
-
-            canvas.style.width  = w + 'px';
-            canvas.style.height = h + 'px';
-            canvas.width  = w * dpr;
-            canvas.height = h * dpr;
-            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-            if (tempCanvas.width > 0 && tempCanvas.height > 0) {
-                ctx.drawImage(tempCanvas, 0, 0, tempCanvas.width / dpr, tempCanvas.height / dpr);
-            }
-
-            bgCanvas.style.width  = w + 'px';
-            bgCanvas.style.height = h + 'px';
-            bgCanvas.width  = w * dpr;
-            bgCanvas.height = h * dpr;
-            bgCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-            applyToolSettings();
-            drawPaperBackground(w, h);
-        }
-
-        function drawPaperBackground(w, h) {
-            bgCtx.fillStyle = '#ffffff';
-            bgCtx.fillRect(0, 0, w, h);
-
-            if (currentPaper === 'grid') {
-                const step = 36;
-                bgCtx.strokeStyle = '#dce3f0';
-                bgCtx.lineWidth = 0.8;
-                bgCtx.beginPath();
-                for (let x = step; x < w; x += step) {
-                    bgCtx.moveTo(x, 0);
-                    bgCtx.lineTo(x, h);
-                }
-                for (let y = step; y < h; y += step) {
-                    bgCtx.moveTo(0, y);
-                    bgCtx.lineTo(w, y);
-                }
-                bgCtx.stroke();
-            } else if (currentPaper === 'lined') {
-                const lineSpacing = 48;
-                const topMargin = 72;
-                const leftMargin = 88;
-
-                bgCtx.strokeStyle = '#f87171';
-                bgCtx.lineWidth = 1.5;
-                bgCtx.beginPath();
-                bgCtx.moveTo(leftMargin, 0);
-                bgCtx.lineTo(leftMargin, h);
-                bgCtx.stroke();
-
-                bgCtx.strokeStyle = '#bfdbfe';
-                bgCtx.lineWidth = 0.9;
-                bgCtx.beginPath();
-                for (let y = topMargin; y < h; y += lineSpacing) {
-                    bgCtx.moveTo(0, y);
-                    bgCtx.lineTo(w, y);
-                }
-                bgCtx.stroke();
-            }
-        }
-
-        // ──────── Tool Switcher ────────
-        function setTool(mode) {
-            currentMode = mode;
-            [toolPen, toolEraser, toolType, toolSelect].forEach(btn => btn.classList.remove('active'));
-            canvasWrapper.classList.remove('cursor-pen', 'cursor-eraser', 'cursor-type', 'cursor-select');
-
-            if (mode === 'pen') {
-                toolPen.classList.add('active');
-                canvasWrapper.classList.add('cursor-pen');
-                symbolsBar.classList.remove('visible');
-            } else if (mode === 'eraser') {
-                toolEraser.classList.add('active');
-                canvasWrapper.classList.add('cursor-eraser');
-                symbolsBar.classList.remove('visible');
-            } else if (mode === 'type') {
-                toolType.classList.add('active');
-                canvasWrapper.classList.add('cursor-type');
-                symbolsBar.classList.add('visible');
-            } else if (mode === 'select') {
-                toolSelect.classList.add('active');
-                canvasWrapper.classList.add('cursor-select');
-                symbolsBar.classList.remove('visible');
-            }
-            applyToolSettings();
-        }
-
-        function applyToolSettings() {
-            if (currentMode === 'eraser') {
-                ctx.globalCompositeOperation = 'destination-out';
-                ctx.lineWidth = 26;
-                ctx.lineCap = 'round';
-                ctx.lineJoin = 'round';
-            } else {
-                ctx.globalCompositeOperation = 'source-over';
-                ctx.lineWidth = 3;
-                ctx.strokeStyle = '#111827';
-                ctx.lineCap = 'round';
-                ctx.lineJoin = 'round';
-            }
-        }
-
-        toolPen.addEventListener('click', () => setTool('pen'));
-        toolEraser.addEventListener('click', () => setTool('eraser'));
-        toolType.addEventListener('click', () => setTool('type'));
-        toolSelect.addEventListener('click', () => setTool('select'));
-
-        // ──────── Math Symbol Insertion ────────
-        document.querySelectorAll('.sym-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.preventDefault();
-                insertSymbol(btn.dataset.sym);
-            });
-        });
-
-        function insertSymbol(sym) {
-            if (activeTypeBlock.style.display !== 'none') {
-                const start = typedInput.selectionStart;
-                const end = typedInput.selectionEnd;
-                const val = typedInput.value;
-                typedInput.value = val.substring(0, start) + sym + val.substring(end);
-                typedInput.focus();
-                typedInput.selectionStart = typedInput.selectionEnd = start + sym.length;
-            } else {
-                const scrollY = scrollContainer.scrollTop;
-                openTypeBlock(90, scrollY + 140, sym);
-            }
-        }
-
-        // ──────── Paper Switching ────────
-        const paperBtns = document.querySelectorAll('.paper-btn');
-        paperBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                paperBtns.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                currentPaper = btn.dataset.paper;
-                drawPaperBackground(canvasWrapper.clientWidth, VIRTUAL_HEIGHT);
-            });
-        });
-
-        function getPos(e) {
-            const rect = canvas.getBoundingClientRect();
-            if (e.touches && e.touches.length) {
-                return {
-                    x: e.touches[0].clientX - rect.left,
-                    y: e.touches[0].clientY - rect.top,
-                };
-            }
-            return { x: e.clientX - rect.left, y: e.clientY - rect.top };
-        }
-
-        // ──────── Typed Proof Manager ────────
-        function openTypeBlock(x, y, initialText = '') {
-            activeTypePos = { x: Math.max(20, x), y: Math.max(20, y) };
-            activeTypeBlock.style.left = activeTypePos.x + 'px';
-            activeTypeBlock.style.top  = activeTypePos.y + 'px';
-            activeTypeBlock.style.display = 'block';
-            typedInput.value = initialText;
-            typedInput.focus();
-            symbolsBar.classList.add('visible');
-        }
-
-        function closeTypeBlock() {
-            activeTypeBlock.style.display = 'none';
-            typedInput.value = '';
-            editingTextBlock = null;
-        }
-
-        btnCancelType.addEventListener('click', closeTypeBlock);
-
-        btnCommitType.addEventListener('click', () => {
-            const text = typedInput.value.trim();
-            if (!text) {
-                closeTypeBlock();
-                return;
-            }
-
-            if (editingTextBlock) {
-                editingTextBlock.innerHTML = text.replace(/\n/g, '<br/>');
-                renderMathInElem(editingTextBlock);
-            } else {
-                createCommittedTextBlock(activeTypePos.x, activeTypePos.y, text);
-            }
-
-            maxDrawnY = Math.max(maxDrawnY, activeTypePos.y + 120);
-            closeTypeBlock();
-        });
-
-        function createCommittedTextBlock(x, y, text) {
-            const el = document.createElement('div');
-            el.className = 'committed-text-box';
-            el.style.left = x + 'px';
-            el.style.top  = y + 'px';
-            el.style.pointerEvents = 'auto';
-            el.innerHTML = text.replace(/\n/g, '<br/>');
-
-            el.addEventListener('dblclick', () => {
-                editingTextBlock = el;
-                openTypeBlock(parseInt(el.style.left, 10), parseInt(el.style.top, 10), el.innerText);
-            });
-
-            textBlocksLayer.appendChild(el);
-            renderMathInElem(el);
-        }
-
-        // ──────── Drawing & Selection ────────
-        let isInteracting = false;
-
-        function startInteraction(e) {
-            const p = getPos(e);
-
-            if (currentMode === 'type') {
-                if (e.target.closest('#activeTypeBlock') || e.target.closest('.committed-text-box')) return;
-                openTypeBlock(p.x, p.y);
-                return;
-            }
-
-            if (currentMode === 'select') {
-                isInteracting = true;
-                selectStart = { x: p.x, y: p.y };
-                updateSelectionBox(p.x, p.y, 0, 0);
-                selectionBox.style.display = 'block';
-                return;
-            }
-
-            isInteracting = true;
-            applyToolSettings();
-            ctx.beginPath();
-            ctx.moveTo(p.x, p.y);
-
-            if (currentMode === 'eraser') {
-                ctx.lineTo(p.x + 0.1, p.y + 0.1);
-                ctx.stroke();
-            } else {
-                maxDrawnY = Math.max(maxDrawnY, p.y + 50);
-            }
-        }
-
-        function moveInteraction(e) {
-            if (!isInteracting) return;
-            const p = getPos(e);
-
-            if (currentMode === 'select') {
-                const x = Math.min(selectStart.x, p.x);
-                const y = Math.min(selectStart.y, p.y);
-                const w = Math.abs(p.x - selectStart.x);
-                const h = Math.abs(p.y - selectStart.y);
-                updateSelectionBox(x, y, w, h);
-                return;
-            }
-
-            ctx.lineTo(p.x, p.y);
-            ctx.stroke();
-
-            if (currentMode === 'pen') {
-                maxDrawnY = Math.max(maxDrawnY, p.y + 50);
-            }
-        }
-
-        function stopInteraction(e) {
-            if (!isInteracting) return;
-            isInteracting = false;
-
-            if (currentMode === 'select') {
-                if (activeSelection && (activeSelection.w < 20 || activeSelection.h < 20)) {
-                    clearSelection();
-                } else if (activeSelection) {
-                    selectionBox.classList.add('active');
-                }
-            }
-        }
-
-        function updateSelectionBox(x, y, w, h) {
-            activeSelection = { x, y, w, h };
-            selectionBox.style.left   = x + 'px';
-            selectionBox.style.top    = y + 'px';
-            selectionBox.style.width  = w + 'px';
-            selectionBox.style.height = h + 'px';
-        }
-
-        function clearSelection() {
-            activeSelection = null;
-            selectStart = null;
-            selectionBox.style.display = 'none';
-            selectionBox.classList.remove('active');
-        }
-
-        btnClearSel.addEventListener('click', (e) => {
-            e.stopPropagation();
-            clearSelection();
-        });
-
-        canvas.addEventListener('mousedown', startInteraction);
-        canvas.addEventListener('mousemove', moveInteraction);
-        canvas.addEventListener('mouseup',   stopInteraction);
-        canvas.addEventListener('mouseout',  stopInteraction);
-
-        canvas.addEventListener('touchstart', e => {
-            if (currentMode === 'select' || currentMode === 'eraser' || currentMode === 'pen') {
-                e.preventDefault();
-            }
-            startInteraction(e);
-        }, { passive: false });
-
-        canvas.addEventListener('touchmove', e => {
-            if (isInteracting) { e.preventDefault(); }
-            moveInteraction(e);
-        }, { passive: false });
-
-        canvas.addEventListener('touchend', e => {
-            stopInteraction(e);
-        }, { passive: false });
-
-        // ──────── In-Place Multi-Error Callouts ────────
-        function clearAllErrorPins() {
-            errorPinsLayer.innerHTML = '';
-        }
-
-        function displayErrors(data, activeScope) {
-            clearAllErrorPins();
-
-            let errorList = [];
-            if (data.errors && Array.isArray(data.errors) && data.errors.length > 0) {
-                errorList = data.errors;
-            }
-
-            if (errorList.length === 0) return;
-
-            const w = canvasWrapper.clientWidth;
-            let firstPinY = null;
-
-            errorList.forEach((err, idx) => {
-                let posX, posY;
-
-                if (activeScope && activeScope.isSelection) {
-                    const sel = activeScope.selection;
-                    posX = sel.x + (Number(err.error_location_x) * sel.w);
-                    posY = sel.y + (Number(err.error_location_y) * sel.h);
-                } else {
-                    const activeHeight = activeScope ? activeScope.scanHeight : VIRTUAL_HEIGHT;
-                    posX = Number(err.error_location_x) * w;
-                    posY = Number(err.error_location_y) * activeHeight;
-                }
-
-                posX = Math.max(16, Math.min(w - 30, posX));
-                posY = Math.max(16, Math.min(VIRTUAL_HEIGHT - 30, posY));
-
-                if (firstPinY === null) firstPinY = posY;
-
-                const anchor = document.createElement('div');
-                anchor.className = 'error-callout-anchor';
-                anchor.style.left = posX + 'px';
-                anchor.style.top  = posY + 'px';
-
-                const isRightSide = posX > w * 0.65;
-                const cardPosStyle = isRightSide ? 'left: auto; right: 26px;' : 'left: 26px; right: auto;';
-
-                const labelHtml = err.problem_label 
-                    ? `<span class="problem-tag">${err.problem_label}</span>` 
-                    : (errorList.length > 1 ? `<span class="problem-tag">#${idx + 1}</span>` : '');
-
-                anchor.innerHTML = `
-                    <div class="error-pin-dot" title="Click to toggle explanation">${idx + 1}</div>
-                    <div class="error-callout-card" style="${cardPosStyle}">
-                        <div class="error-callout-header">
-                            <div class="badge-group">
-                                ${labelHtml}
-                                <span class="badge">${err.error_type || 'LOGIC ERROR'}</span>
-                            </div>
-                            <button class="close-pin-btn" title="Dismiss">✕</button>
-                        </div>
-                        <div class="error-callout-body">${err.correction_message}</div>
-                    </div>
-                `;
-
-                const card = anchor.querySelector('.error-callout-card');
-                const closeBtn = anchor.querySelector('.close-pin-btn');
-                const dot = anchor.querySelector('.error-pin-dot');
-
-                closeBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    anchor.remove();
-                });
-
-                dot.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    card.style.display = (card.style.display === 'none') ? 'block' : 'none';
-                });
-
-                errorPinsLayer.appendChild(anchor);
-                renderMathInElem(anchor.querySelector('.error-callout-body'));
-            });
-
-            if (firstPinY !== null) {
-                const scrollY = scrollContainer.scrollTop;
-                const viewportH = scrollContainer.clientHeight;
-                if (firstPinY < scrollY + 40 || firstPinY > scrollY + viewportH - 80) {
-                    scrollContainer.scrollTo({ top: Math.max(0, firstPinY - 140), behavior: 'smooth' });
-                }
-            }
-        }
-
-        // ──────── Clear All ────────
-        btnClear.addEventListener('click', () => {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            textBlocksLayer.innerHTML = '';
-            clearSelection();
-            clearAllErrorPins();
-            closeTypeBlock();
-            maxDrawnY = 600;
-            window.hideAll();
-            latexPanel.style.display = 'none';
-        });
-
-        // ──────── LaTeX Copy & Close ────────
-        btnCopyLatex.addEventListener('click', () => {
-            navigator.clipboard.writeText(latexCode.textContent).then(() => {
-                btnCopyLatex.textContent = '✓ Copied!';
-                setTimeout(() => btnCopyLatex.textContent = 'Copy', 1800);
-            });
-        });
-        btnCloseLatex.addEventListener('click', () => {
-            latexPanel.style.display = 'none';
-        });
-
-        window.hideAll = function() {
-            [fbLoading, fbSuccess, fbHint, fbServerErr].forEach(c => c.style.display = 'none');
-            clearAllErrorPins();
-        };
-
-        function showCard(card) {
-            [fbLoading, fbSuccess, fbHint, fbServerErr].forEach(c => c.style.display = 'none');
-            if (card) card.style.display = 'block';
-        }
-
-        function setButtons(disabled) {
-            [btnClear, btnCheck, btnHint].forEach(b => b.disabled = disabled);
-        }
-
-        // ──────── Render Typed Text Onto Canvas Image ────────
-        function renderTypedTextOntoContext(targetCtx, sx, sy, scale = 1) {
-            const blocks = textBlocksLayer.querySelectorAll('.committed-text-box');
-            blocks.forEach(b => {
-                const bx = (parseInt(b.style.left, 10) - sx) * scale;
-                const by = (parseInt(b.style.top, 10) - sy) * scale;
-                
-                targetCtx.save();
-                targetCtx.fillStyle = '#0f172a';
-                targetCtx.font = `${Math.round(18 * scale)}px 'Lora', Georgia, serif`;
-                targetCtx.textBaseline = 'top';
-
-                const lines = b.innerText.split('\n');
-                lines.forEach((line, i) => {
-                    targetCtx.fillText(line, bx + 4 * scale, by + (i * 26 * scale));
-                });
-                targetCtx.restore();
-            });
-        }
-
-        // ──────── Payload Image Extraction ────────
-        function getPayloadImage() {
-            const dpr = window.devicePixelRatio || 1;
-            const w = canvasWrapper.clientWidth;
-
-            if (activeSelection && activeSelection.w > 20 && activeSelection.h > 20) {
-                const pad = 16;
-                const sx = Math.max(0, activeSelection.x - pad);
-                const sy = Math.max(0, activeSelection.y - pad);
-                const sw = Math.min(w - sx, activeSelection.w + pad * 2);
-                const sh = Math.min(VIRTUAL_HEIGHT - sy, activeSelection.h + pad * 2);
-
-                const cropCanvas = document.createElement('canvas');
-                cropCanvas.width  = sw * dpr;
-                cropCanvas.height = sh * dpr;
-                const cCtx = cropCanvas.getContext('2d');
-
-                cCtx.drawImage(bgCanvas, sx * dpr, sy * dpr, sw * dpr, sh * dpr, 0, 0, sw * dpr, sh * dpr);
-                cCtx.drawImage(canvas,   sx * dpr, sy * dpr, sw * dpr, sh * dpr, 0, 0, sw * dpr, sh * dpr);
-                renderTypedTextOntoContext(cCtx, sx, sy, dpr);
-
-                const b64 = cropCanvas.toDataURL('image/png').replace(/^data:image\/png;base64,/, '');
-                return {
-                    b64,
-                    isSelection: true,
-                    selection: { x: sx, y: sy, w: sw, h: sh }
-                };
-            }
-
-            // Full Page Scan
-            const scanHeight = Math.min(VIRTUAL_HEIGHT, Math.max(800, maxDrawnY + 80));
-
-            const tmp = document.createElement('canvas');
-            const targetW = Math.min(w, 1100);
-            const scale = targetW / w;
-            const targetH = scanHeight * scale;
-
-            tmp.width  = targetW;
-            tmp.height = targetH;
-            const tCtx = tmp.getContext('2d');
-
-            tCtx.drawImage(bgCanvas, 0, 0, w * dpr, scanHeight * dpr, 0, 0, targetW, targetH);
-            tCtx.drawImage(canvas,   0, 0, w * dpr, scanHeight * dpr, 0, 0, targetW, targetH);
-            renderTypedTextOntoContext(tCtx, 0, 0, scale);
-
-            const b64 = tmp.toDataURL('image/png').replace(/^data:image\/png;base64,/, '');
-            return {
-                b64,
-                isSelection: false,
-                scanHeight: scanHeight
-            };
-        }
-
-        // ──────── Call Tutor API ────────
-        async function callTutor(actionType) {
-            const scope = getPayloadImage();
-
-            setButtons(true);
-            showCard(fbLoading);
-            clearAllErrorPins();
-            latexPanel.style.display = 'none';
-
-            try {
-                const res = await fetch('/tutor', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        image_data: scope.b64,
-                        action_type: actionType,
-                        is_selection: scope.isSelection
-                    }),
-                });
-
-                if (!res.ok) {
-                    const errBody = await res.json().catch(() => ({}));
-                    throw new Error(errBody.detail || `HTTP ${res.status}`);
-                }
-
-                const data = await res.json();
-                showCard(null);
-
-                // Save attempt to practice history
-                if (actionType === 'check_logic') {
-                    const errorClues = (data.errors || []).map(e => `${e.problem_label || 'Problem'}: ${e.correction_message}`);
-                    saveHistoryRecord({
-                        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                        is_correct: data.is_correct_so_far,
-                        latex: data.current_latex || '',
-                        summary: data.status_message || '',
-                        error_clues: errorClues
-                    });
-                }
-
-                if (actionType === 'get_hint') {
-                    showCard(fbHint);
-                    hintMsg.innerHTML = data.faint_hint || data.status_message;
-                    renderMathInElem(hintMsg);
-                } else {
-                    showCard(fbSuccess);
-                    successMsg.innerHTML = data.status_message || (data.is_correct_so_far ? 'All steps and proofs are mathematically sound!' : 'Found areas to review.');
-                    renderMathInElem(successMsg);
-
-                    displayErrors(data, scope);
-                }
-
-                if (data.current_latex && data.current_latex.trim().length > 0) {
-                    latexCode.textContent    = data.current_latex;
-                    latexPanel.style.display = 'block';
-                }
-
-            } catch (err) {
-                showCard(fbServerErr);
-                document.getElementById('serverErrorMsg').textContent = `${err.message}`;
-            } finally {
-                setButtons(false);
-            }
-        }
-
-        btnCheck.addEventListener('click', () => callTutor('check_logic'));
-        btnHint.addEventListener('click',  () => callTutor('get_hint'));
-
-        // ──────── Analytics & Mastery Modal ────────
-        let lastDiagnosticData = null;
-
-        btnOpenAnalytics.addEventListener('click', () => {
-            renderHistoryModal();
-            analyticsModal.classList.add('open');
-            // Auto-trigger analysis if we have records but haven't run diagnostic yet
-            const hist = getHistory();
-            if (hist.length > 0 && !lastDiagnosticData) {
-                btnRefreshDiag.click();
-            }
-        });
-        btnCloseAnalytics.addEventListener('click', () => {
-            analyticsModal.classList.remove('open');
-        });
-        btnClearHistory.addEventListener('click', () => {
-            if (confirm('Clear your accumulated math practice history?')) {
-                lastDiagnosticData = null;
-                clearHistoryStore();
-                document.getElementById('diagSummary').innerHTML = 'Click "Generate Full AI Analysis" to synthesize all your practice attempts into a detailed breakdown.';
-                document.getElementById('diagStrengths').innerHTML = '<li>Accuracy and logic across completed problem steps.</li>';
-                document.getElementById('diagWeaknesses').innerHTML = '<li>No weak spots logged yet.</li>';
-                document.getElementById('pitfallBox').style.display = 'none';
-                document.getElementById('adviceBox').style.display = 'none';
-            }
-        });
-
-        function renderHistoryModal() {
-            const hist = getHistory();
-            const total = hist.length;
-            const correctCount = hist.filter(h => h.is_correct).length;
-            const accuracy = total > 0 ? Math.round((correctCount / total) * 100) : 100;
-
-            document.getElementById('statTotalChecks').textContent = total;
-            document.getElementById('statAccuracy').textContent = total > 0 ? `${accuracy}%` : '--';
-            if (!lastDiagnosticData) {
-                document.getElementById('statMasteryScore').textContent = total > 0 ? `${accuracy} / 100` : '--';
-            }
-
-            const listEl = document.getElementById('historyList');
-            if (total === 0) {
-                listEl.innerHTML = '<div style="font-size:0.85rem;color:var(--text-muted);text-align:center;padding:14px;">No math attempts logged yet. Check problems on the scratchpad to build your diagnostic profile!</div>';
-            } else {
-                listEl.innerHTML = hist.slice().reverse().map((item, idx) => `
-                    <div class="history-item ${item.is_correct ? 'pass' : 'fail'}">
-                        <div class="history-item-header">
-                            <span class="history-item-time">Attempt #${total - idx} • ${item.timestamp}</span>
-                            <span class="history-status-tag ${item.is_correct ? 'pass' : 'fail'}">
-                                ${item.is_correct ? '✓ Clean Logic' : '⚠️ Errors Flagged'}
-                            </span>
-                        </div>
-                        <div class="history-item-math">${item.latex ? `$${item.latex.substring(0, 75)}${item.latex.length > 75 ? '...' : ''}$` : item.summary}</div>
-                        ${(!item.is_correct && item.error_clues && item.error_clues.length > 0) ? `<div style="font-size:0.75rem;color:var(--error);line-height:1.4;margin-top:2px;">⚠️ ${item.error_clues.join(' • ')}</div>` : ''}
-                    </div>
-                `).join('');
-                renderMathInElem(listEl);
-            }
-        }
-
-        btnRefreshDiag.addEventListener('click', async () => {
-            const hist = getHistory();
-            if (hist.length === 0) {
-                alert('Solve and check at least one problem first to generate AI diagnostics!');
-                return;
-            }
-
-            btnRefreshDiag.disabled = true;
-            btnRefreshDiag.textContent = '⏳ Analyzing Patterns…';
-
-            try {
-                const res = await fetch('/analytics', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        records: hist.map(h => ({
-                            timestamp: h.timestamp,
-                            is_correct: h.is_correct,
-                            latex: h.latex,
-                            summary: h.summary,
-                            error_clues: h.error_clues || []
-                        }))
-                    })
-                });
-
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const data = await res.json();
-                lastDiagnosticData = data;
-
-                // Render Diagnostics
-                document.getElementById('statMasteryScore').textContent = `${data.mastery_score} / 100`;
-                document.getElementById('diagSummary').innerHTML = data.overall_summary;
-                renderMathInElem(document.getElementById('diagSummary'));
-
-                const strengthsList = document.getElementById('diagStrengths');
-                strengthsList.innerHTML = (data.strong_points || []).map(s => `<li>${s}</li>`).join('');
-                renderMathInElem(strengthsList);
-
-                const weakList = document.getElementById('diagWeaknesses');
-                weakList.innerHTML = (data.weak_points || []).map(w => `<li>${w}</li>`).join('');
-                renderMathInElem(weakList);
-
-                const pitfallBox = document.getElementById('pitfallBox');
-                const pitfallList = document.getElementById('diagPitfalls');
-                if (data.frequent_pitfalls && data.frequent_pitfalls.length > 0) {
-                    pitfallList.innerHTML = data.frequent_pitfalls.map(p => `<li>${p}</li>`).join('');
-                    pitfallBox.style.display = 'flex';
-                    renderMathInElem(pitfallList);
-                } else {
-                    pitfallBox.style.display = 'none';
-                }
-
-                const adviceBox = document.getElementById('adviceBox');
-                const adviceList = document.getElementById('diagAdvice');
-                if (data.actionable_advice && data.actionable_advice.length > 0) {
-                    adviceList.innerHTML = data.actionable_advice.map(a => `<li>${a}</li>`).join('');
-                    adviceBox.style.display = 'flex';
-                    renderMathInElem(adviceList);
-                } else {
-                    adviceBox.style.display = 'none';
-                }
-
-            } catch (err) {
-                alert('Diagnostic error: ' + err.message);
-            } finally {
-                btnRefreshDiag.disabled = false;
-                btnRefreshDiag.textContent = '✨ Refresh Full AI Analysis';
-            }
-        });
-
-        updateHistoryBadge();
-        resizeCanvases();
-        window.addEventListener('resize', resizeCanvases);
-    })();
-    </script>
-</body>
+      </form>
+    </dialog>
+    <div id="toast" class="toast" role="status" hidden></div>
+  </body>
 </html>
