@@ -165,8 +165,10 @@ SYSTEM_ANALYTICS = (
     "   - 'weak_points': List 3-5 specific math areas and theorems where they made errors (e.g., 'Indefinite integration: forgetting constant of integration $+ C$', 'Reversing power rule vs derivative power rule', '$u$-substitution differential matching $du$', 'Handling negative coefficients during integration').\n"
     "   - 'frequent_pitfalls': List 2-4 concrete habits or recurring calculation traps seen in their work (e.g., 'Treating $\\int \\frac{1}{x} dx$ as $\\frac{x^0}{0}$ instead of $\\ln|x|$', 'Incorrectly distributing $-1$ across polynomial terms', 'Assuming equality without justifying base case').\n"
     "   - 'actionable_advice': List 3-4 specific, high-yield practice drills to fix their gaps (e.g., 'Drill 10 standard antiderivative substitution problems with linear arguments $\\int (ax+b)^n dx$', 'Review the Fundamental Theorem of Calculus Part 1', 'Practice verifying integration answers by differentiating the result').\n\n"
-    "4. FORMATTING:\n"
-    "   - ALWAYS format every math expression, rule, formula, or variable using LaTeX enclosed in $...$ (inline) or $$...$$ (display).\n"
+    "4. LATEX SYNTAX & ENCLOSURE RULES (CRITICAL):\n"
+    "   - NEVER write raw LaTeX commands in plain prose outside dollar signs (e.g. never write extstyle or rac{d}{dx} in plain text).\n"
+    "   - EVERY math symbol, formula, derivative, integral, and fraction MUST be cleanly enclosed inside $...$ dollar delimiters (e.g. $\\frac{d}{dx}[x^2] = 2x$, $\\int x^n dx = \\frac{x^{n+1}}{n+1} + C$).\n"
+    "   - In JSON strings, properly escape backslashes for standard LaTeX commands (e.g. $\\\\frac{...}{...}$, $\\\\int$, $\\\\sin(x)$, $\\\\lim$).\n"
     "Return JSON conforming strictly to the AnalyticsResponse schema."
 )
 

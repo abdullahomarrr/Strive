@@ -37,8 +37,22 @@
   document
     .querySelectorAll("[data-icon]")
     .forEach((el) => (el.innerHTML = icon(el.dataset.icon)));
+  const sanitizeLatex = (str) => {
+    let s = String(str ?? "");
+    s = s.replace(/extstyle/g, "\\textstyle ")
+         .replace(/displaystyle/g, "\\displaystyle ")
+         .replace(/igintsss/g, "\\int ")
+         .replace(/igint/g, "\\int ")
+         .replace(/[\u2191\u25b2]rac/g, "\\frac")
+         .replace(/[\u25a1\u25af\u25fb\u25fc]rac/g, "\\frac")
+         .replace(/([^a-zA-Z\\])rac\{/g, "$1\\frac{")
+         .replace(/^rac\{/g, "\\frac{")
+         .replace(/([^a-zA-Z\\])ext\{/g, "$1\\text{")
+         .replace(/^ext\{/g, "\\text{");
+    return s;
+  };
   const escapeHtml = (text) =>
-    String(text ?? "").replace(
+    sanitizeLatex(text).replace(
       /[&<>"']/g,
       (c) =>
         ({

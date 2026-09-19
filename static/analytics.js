@@ -1,7 +1,22 @@
 (() => {
   "use strict";
+  const sanitizeLatex = (str) => {
+    let s = String(str ?? "");
+    // Fix broken escapes where backslash was eaten or malformed
+    s = s.replace(/extstyle/g, "\\textstyle ")
+         .replace(/displaystyle/g, "\\displaystyle ")
+         .replace(/igintsss/g, "\\int ")
+         .replace(/igint/g, "\\int ")
+         .replace(/[\u2191\u25b2]rac/g, "\\frac") // arrow unicode artifacts + rac -> \frac
+         .replace(/[\u25a1\u25af\u25fb\u25fc]rac/g, "\\frac") // box unicode artifacts + rac -> \frac
+         .replace(/([^a-zA-Z\\])rac\{/g, "$1\\frac{")
+         .replace(/^rac\{/g, "\\frac{")
+         .replace(/([^a-zA-Z\\])ext\{/g, "$1\\text{")
+         .replace(/^ext\{/g, "\\text{");
+    return s;
+  };
   const esc = (value) =>
-    String(value ?? "").replace(
+    sanitizeLatex(value).replace(
       /[&<>"']/g,
       (c) =>
         ({
