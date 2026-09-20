@@ -26,8 +26,11 @@
     dialog: document.getElementById("authDialog"),
     form: document.getElementById("authForm"),
     title: document.getElementById("authTitle"),
+    subtitle: document.getElementById("authSubtitle"),
     signedOut: document.getElementById("authSignedOut"),
     signedIn: document.getElementById("authSignedIn"),
+    nameGroup: document.getElementById("authNameGroup"),
+    name: document.getElementById("authName"),
     email: document.getElementById("authEmail"),
     password: document.getElementById("authPassword"),
     message: document.getElementById("authMessage"),
@@ -269,12 +272,20 @@
         : mode === "recovery"
           ? "Choose a new password"
           : "Welcome back";
+    ui.subtitle.textContent =
+      mode === "signup"
+        ? "Create a space for your notes, progress, and next questions."
+        : mode === "recovery"
+          ? "Choose a secure password for your account."
+          : "Pick up where your thinking left off.";
     ui.submit.textContent =
       mode === "signup"
         ? "Create account"
         : mode === "recovery"
           ? "Update password"
           : "Sign in";
+    ui.nameGroup.hidden = mode !== "signup";
+    ui.name.required = mode === "signup";
     ui.forgot.hidden = mode !== "signin";
     ui.password.autocomplete =
       mode === "signin" ? "current-password" : "new-password";
@@ -324,6 +335,9 @@
       const authDialog = document.getElementById("authDialog");
       if (authDialog?.open) authDialog.close();
       window.StriveOnboarding.start({
+        initial: {
+          name: metadata.full_name || metadata.name || "",
+        },
         complete: async (preferences) => {
           const { data, error } = await client.auth.updateUser({
             data: {
@@ -366,6 +380,7 @@
             options: {
               emailRedirectTo: location.origin,
               data: {
+                full_name: ui.name.value.trim(),
                 strive_new_account: true,
                 strive_onboarding_complete: false,
               },

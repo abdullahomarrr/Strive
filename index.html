@@ -480,11 +480,33 @@
       </form>
     </dialog>
     <dialog id="authDialog" class="auth-dialog">
+      <div class="auth-shell">
+        <aside class="auth-story" aria-hidden="true">
+          <div class="auth-story-brand">strive<span>.</span></div>
+          <div class="auth-story-copy">
+            <span>YOUR THINKING, KEPT TOGETHER</span>
+            <h2>Make room<br />for the next step.</h2>
+            <p>A calm notebook for working through the part that almost makes sense.</p>
+          </div>
+          <div class="auth-paper-scene">
+            <div class="auth-paper-shadow"></div>
+            <div class="auth-paper">
+              <span>CALCULUS / PAGE 4</span>
+              <strong>∫ 3x² dx</strong>
+              <i></i><i></i><i></i>
+              <em>Small steps still count.</em>
+            </div>
+            <div class="auth-nudge">A useful question →</div>
+          </div>
+          <p class="auth-story-foot">A LITTLE ROOM TO THINK</p>
+        </aside>
+        <section class="auth-panel">
       <form id="authForm">
         <div class="dialog-heading auth-heading">
           <div>
-            <span class="eyebrow">YOUR WORK, EVERYWHERE</span>
+            <span class="eyebrow">WELCOME TO STRIVE</span>
             <h2 id="authTitle">Welcome back</h2>
+            <p id="authSubtitle">Pick up where your thinking left off.</p>
           </div>
           <button
             type="button"
@@ -502,6 +524,16 @@
             <button type="button" data-auth-mode="signup">
               Create account
             </button>
+          </div>
+          <div id="authNameGroup" hidden>
+            <label for="authName">Your name</label>
+            <input
+              id="authName"
+              type="text"
+              maxlength="60"
+              autocomplete="name"
+              placeholder="What should we call you?"
+            />
           </div>
           <label for="authEmail">Email</label>
           <input
@@ -526,7 +558,7 @@
             type="submit"
             class="button primary auth-submit"
           >
-            Sign in
+            Sign in <span aria-hidden="true">→</span>
           </button>
           <button id="forgotPassword" type="button" class="auth-link">
             Forgot your password?
@@ -563,6 +595,9 @@
           </button>
         </div>
       </form>
+          <p class="auth-privacy">Your notes stay private to your account.</p>
+        </section>
+      </div>
     </dialog>
     <div id="toast" class="toast" role="status" hidden></div>
   </body>
