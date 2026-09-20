@@ -1423,10 +1423,14 @@
     $("feedbackContent").append(p);
   }
   async function api(path, payload) {
+    const learnerProfile = window.StriveCloud?.getLearnerProfile?.();
     const response = await fetch(window.striveApiUrl(path), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        ...payload,
+        ...(learnerProfile ? { learner_profile: learnerProfile } : {}),
+      }),
       signal: requestController.signal,
     });
     const data = await response.json().catch(() => ({}));

@@ -212,7 +212,9 @@ Model names currently live in `ACTIVE_MODELS`. The client wrapper and response p
 
 ## First-run onboarding
 
-Onboarding appears after a newly created account reaches its first authenticated session. It is a short, four-part introduction to Strive's core promise: think on paper, use familiar notebook tools, ask for guidance without surrendering the work, and shape the workspace around the student's current subject and goal.
+Onboarding is a short learner intake, not a product tour. Four required steps ask for the student's level, current subjects, common sticking points, preferred hint style, and immediate goal. Optional name and course fields add useful context without blocking setup. The layout is deliberately plain and form-led: no decorative product mockups, generic inspirational copy, or skippable slides.
+
+The resulting profile is stored in account metadata and accompanies tutor requests so wording, depth, and hint style reflect the learner's choices without weakening mathematical standards. Signed-in users can reopen the intake from **Edit learning profile** in the account dialog.
 
 The experience should feel like opening a well-made notebook. It uses warm paper, restrained navy and teal, generous space, and small product demonstrations rather than generic feature illustrations. Motion explains the product: ink draws onto a page, tools settle into place, and tutor feedback arrives beside the relevant line. Transitions should remain calm and respect `prefers-reduced-motion`.
 

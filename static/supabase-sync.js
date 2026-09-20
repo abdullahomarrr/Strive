@@ -404,6 +404,25 @@
         : "Password reset instructions were sent to your email.";
     };
     document.getElementById("syncNow").onclick = () => syncNow();
+    document.getElementById("editLearningProfile").onclick = () => {
+      const existing =
+        session?.user?.user_metadata?.strive_onboarding_preferences || {};
+      ui.dialog.close();
+      window.StriveOnboarding?.start({
+        initial: existing,
+        complete: async (preferences) => {
+          const { data, error } = await client.auth.updateUser({
+            data: {
+              strive_new_account: true,
+              strive_onboarding_complete: true,
+              strive_onboarding_preferences: preferences,
+            },
+          });
+          if (error) throw error;
+          if (data.user) session = { ...session, user: data.user };
+        },
+      });
+    };
     document.getElementById("signOut").onclick = async () => {
       await client.auth.signOut();
       if (desktopRequiresAccount()) showDesktopAuthGate();
@@ -471,5 +490,7 @@
     syncNow,
     deleteNotebook,
     isSignedIn: () => !!session?.user,
+    getLearnerProfile: () =>
+      session?.user?.user_metadata?.strive_onboarding_preferences || null,
   };
 })();

@@ -27,9 +27,11 @@ class WorkspaceContractTests(unittest.TestCase):
         self.assertIn('strive_onboarding_complete', sync_js)
         self.assertIn('strive_onboarding_preferences', sync_js)
         self.assertIn('window.StriveOnboarding.start', sync_js)
-        self.assertIn('Your thinking has a home.', onboarding_js)
-        self.assertIn('Guidance that meets you where you are.', onboarding_js)
-        self.assertIn('What are you working toward?', onboarding_js)
+        self.assertIn('Where are you in your math journey?', onboarding_js)
+        self.assertIn('What are you studying right now?', onboarding_js)
+        self.assertIn('Where do you usually get stuck?', onboarding_js)
+        self.assertIn('How should your tutor help?', onboarding_js)
+        self.assertIn('getLearnerProfile', sync_js)
 
     def test_public_config_exposes_only_browser_safe_supabase_settings(self):
         with patch.dict('os.environ', {'SUPABASE_URL': 'https://example.supabase.co',

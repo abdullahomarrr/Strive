@@ -29,7 +29,7 @@ Never put a Supabase secret or service-role key in `.env` for this browser integ
 
 New accounts start with zero notebooks. Guest notebooks stay separate from account notebooks and are not imported during signup. Strive continues saving signed-in work locally first, queues changes while offline, merges notebooks by their client update timestamps, restores the current guest workspace after sign-out, and listens for changes from other signed-in devices.
 
-Newly created accounts also receive a one-time animated introduction to the notebook, tools, tutor, and feedback model. Completion and optional study preferences are saved to the account, so the introduction does not repeat on another device.
+Newly created accounts complete a four-step learner intake covering level, current subjects, sticking points, preferred hint style, and immediate goal. The saved profile adapts tutor language and guidance across devices and can be edited later from the account dialog.
 
 ## Workspace
 

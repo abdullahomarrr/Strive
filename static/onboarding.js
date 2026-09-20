@@ -1,47 +1,36 @@
 "use strict";
 (() => {
   const steps = [
-    {
-      eyebrow: "WELCOME TO STRIVE",
-      title: "Your thinking has a home.",
-      copy: "A quiet notebook for working things out, making mistakes, and finding your own way through mathematics.",
-      scene: "paper",
-    },
-    {
-      eyebrow: "THINK ON PAPER",
-      title: "Write naturally. Stay in the flow.",
-      copy: "Use the page the way you already think—draw, type, highlight, rearrange, zoom, and keep every course in its own notebook.",
-      scene: "tools",
-    },
-    {
-      eyebrow: "A SECOND PAIR OF EYES",
-      title: "Guidance that meets you where you are.",
-      copy: "Ask for a nudge when you are stuck, check completed reasoning, or get precise TA-style feedback beside the exact line that needs attention.",
-      scene: "guidance",
-    },
-    {
-      eyebrow: "MAKE IT YOURS",
-      title: "What are you working toward?",
-      copy: "Choose what fits right now. Strive will use this to make your empty workspace feel more personal.",
-      scene: "personalize",
-    },
+    { id: "context", kicker: "First, some context", title: "Where are you in your math journey?", description: "This helps Strive explain ideas at the right level." },
+    { id: "subjects", kicker: "Your work", title: "What are you studying right now?", description: "Choose everything that belongs in your workspace." },
+    { id: "friction", kicker: "Be honest", title: "Where do you usually get stuck?", description: "Pick up to three. Your tutor will pay closer attention to these moments." },
+    { id: "tutoring", kicker: "Set the boundaries", title: "How should your tutor help?", description: "You can change this later. For now, choose what keeps you thinking." },
   ];
-  let overlay = null;
+  const profile = { name: "", level: "", subjects: [], course: "", friction: [], help_style: "questions", primary_goal: "" };
+  let overlay;
   let index = 0;
   let active = false;
   let finishing = false;
-  let completeCallback = null;
-  const preferences = { subjects: [], goal: "understand" };
+  let completeCallback;
 
-  const sceneMarkup = (scene) => {
-    if (scene === "paper")
-      return `<div class="ob-paper-scene"><div class="ob-shadow-page"></div><div class="ob-page"><span class="ob-page-kicker">A LITTLE ROOM TO THINK</span><div class="ob-equation">\\(\\int x^2\\,dx\\)</div><svg viewBox="0 0 340 150" aria-hidden="true"><path d="M20 42C66 26 94 51 138 35S213 22 252 42"/><path d="M30 82c42-13 67 18 111 0s76-14 130 4"/><path d="M48 121c38-9 81 14 137-3"/></svg><span class="ob-caret"></span></div><div class="ob-float-note"><b>Calculus I</b><span>Saved. Ready when you are.</span></div></div>`;
-    if (scene === "tools")
-      return `<div class="ob-tools-scene"><div class="ob-mini-toolbar"><span class="active">⌁</span><span>▱</span><span>◇</span><span>T</span><i></i><b></b><b></b><b></b></div><div class="ob-work-page"><div class="ob-hand-line one">\\(f'(x)=3x^2\\)</div><div class="ob-hand-line two">\\(\\int 3x^2\\,dx=x^3+C\\)</div><div class="ob-highlight"></div><div class="ob-pen-path"></div></div><div class="ob-tool-label">Your page stays the main event.</div></div>`;
-    if (scene === "guidance")
-      return `<div class="ob-guidance-scene"><div class="ob-guidance-page"><div class="ob-problem-line">\\(u=x^2+4\\)</div><span class="ob-pin">1</span><div class="ob-inline-note"><small>ANOTHER LOOK</small><p>Where should the differential appear after choosing \\(u\\)?</p></div></div><div class="ob-tutor-card"><span>A SECOND PAIR OF EYES</span><h3>Your tutor</h3><div><i>✓</i><p><b>What’s working</b><small>Your substitution identifies the inner expression.</small></p></div><div><i>✦</i><p><b>Your next move</b><small>Connect the derivative to the remaining factor.</small></p></div></div></div>`;
-    return `<div class="ob-personalize"><div class="ob-choice-group"><span>WHAT ARE YOU STUDYING?</span><div class="ob-chip-grid" data-choice="subjects"><button>Calculus</button><button>Algebra</button><button>Proofs</button><button>Linear algebra</button><button>Statistics</button><button>Something else</button></div></div><div class="ob-choice-group"><span>WHAT DO YOU WANT MOST?</span><div class="ob-goal-grid" data-choice="goal"><button data-value="understand" class="selected"><b>Understand deeply</b><small>Learn the reasoning behind every step.</small></button><button data-value="practice"><b>Practice confidently</b><small>Build consistency through active work.</small></button><button data-value="prepare"><b>Prepare for assessments</b><small>Know what earns full marks.</small></button></div></div></div>`;
-  };
+  const option = (value, label, detail = "") =>
+    `<button type="button" class="ob-option" data-value="${value}"><span class="ob-option-mark" aria-hidden="true"></span><span><b>${label}</b>${detail ? `<small>${detail}</small>` : ""}</span></button>`;
+
+  function escapeHtml(value) {
+    const node = document.createElement("span");
+    node.textContent = value || "";
+    return node.innerHTML;
+  }
+
+  function screen(step) {
+    if (step.id === "context")
+      return `<div class="ob-fields"><label class="ob-field"><span>What should we call you? <em>Optional</em></span><input id="obName" maxlength="40" autocomplete="given-name" placeholder="Your first name" value="${escapeHtml(profile.name)}"></label><fieldset><legend>Your current level</legend><div class="ob-options ob-options-two" data-single="level">${option("high_school", "High school")}${option("college", "College or university")}${option("independent", "Learning independently")}${option("other", "Something else")}</div></fieldset></div>`;
+    if (step.id === "subjects")
+      return `<div class="ob-fields"><fieldset><legend>Subjects <em>Select all that apply</em></legend><div class="ob-options ob-options-two" data-multi="subjects">${option("algebra", "Algebra")}${option("calculus", "Calculus")}${option("statistics", "Statistics")}${option("linear_algebra", "Linear algebra")}${option("proofs", "Proofs & discrete math")}${option("other", "Another subject")}</div></fieldset><label class="ob-field"><span>Course or topic <em>Optional</em></span><input id="obCourse" maxlength="80" placeholder="e.g. MAT137, integration by parts" value="${escapeHtml(profile.course)}"></label></div>`;
+    if (step.id === "friction")
+      return `<fieldset><legend class="sr-only">Where you get stuck</legend><div class="ob-options ob-options-stack" data-multi="friction" data-limit="3">${option("starting", "Starting a problem", "I understand the question but cannot find the first move.")}${option("method", "Choosing a method", "I know several rules but not which one fits.")}${option("small_errors", "Small algebra or notation errors", "My overall approach is right, but details cost me marks.")}${option("proofs", "Explaining why a step is valid", "I can do the work but struggle to justify it clearly.")}${option("stuck_midway", "Getting unstuck halfway through", "I make progress and then lose the direction.")}${option("checking", "Knowing whether I am actually done", "I want a reliable final check without seeing the answer early.")}</div><p class="ob-selection-count"><span>${profile.friction.length}</span>/3 selected</p></fieldset>`;
+    return `<div class="ob-fields"><fieldset><legend>When I ask for a hint…</legend><div class="ob-options ob-options-stack" data-single="help_style">${option("questions", "Ask me a guiding question", "Make me connect the idea before explaining it.")}${option("nudge", "Give me the smallest useful nudge", "Point toward the rule or direction and stop there.")}${option("explain", "Explain the concept clearly", "Teach the missing idea, but leave the calculation to me.")}</div></fieldset><fieldset><legend>What matters most right now?</legend><div class="ob-options ob-options-two" data-single="primary_goal">${option("understanding", "Deep understanding")}${option("homework", "Finishing assignments")}${option("exams", "Preparing for exams")}${option("confidence", "Building confidence")}</div></fieldset></div>`;
+  }
 
   function build() {
     overlay = document.createElement("section");
@@ -51,135 +40,156 @@
     overlay.setAttribute("role", "dialog");
     overlay.setAttribute("aria-modal", "true");
     overlay.setAttribute("aria-labelledby", "obTitle");
-    overlay.innerHTML = `<div class="ob-ambient one"></div><div class="ob-ambient two"></div><div class="ob-shell"><header class="ob-header"><div class="ob-brand">strive<span>.</span></div><div class="ob-step-label"></div><button class="ob-skip" type="button" aria-label="Skip onboarding">×</button></header><div class="ob-stage"><div class="ob-scene"></div></div><main class="ob-copy"><span class="ob-eyebrow"></span><h1 id="obTitle"></h1><p></p></main><footer class="ob-footer"><button class="ob-back" type="button">← Back</button><div class="ob-dots" aria-label="Onboarding progress"></div><button class="ob-next" type="button"><span>Continue</span><b>→</b></button></footer><p class="ob-error" role="status"></p></div>`;
+    overlay.innerHTML = `<div class="ob-frame"><aside class="ob-rail"><div class="ob-brand">strive<span>.</span></div><div class="ob-rail-copy"><span>SET UP YOUR TUTOR</span><p>Four quick questions.<br>No personality quiz.</p></div><ol class="ob-progress"></ol><p class="ob-privacy">Your answers belong to your account and only shape your learning experience.</p></aside><section class="ob-panel"><header class="ob-mobile-header"><div class="ob-brand">strive<span>.</span></div><span class="ob-mobile-count"></span></header><main class="ob-main"><div class="ob-question"><span class="ob-kicker"></span><h1 id="obTitle"></h1><p class="ob-description"></p><div class="ob-screen"></div><p class="ob-error" role="alert"></p></div></main><footer class="ob-footer"><button class="ob-back" type="button">Back</button><span class="ob-key-hint">Press Enter to continue</span><button class="ob-next" type="button"><span>Continue</span><b aria-hidden="true">→</b></button></footer></section></div>`;
     document.body.append(overlay);
-    overlay.querySelector(".ob-skip").onclick = finish;
-    overlay.querySelector(".ob-back").onclick = () => show(index - 1, -1);
-    overlay.querySelector(".ob-next").onclick = () =>
-      index === steps.length - 1 ? finish() : show(index + 1, 1);
-    overlay.addEventListener("click", (event) => {
-      const subject = event.target.closest('[data-choice="subjects"] button');
-      if (subject) {
-        subject.classList.toggle("selected");
-        const name = subject.textContent.trim();
-        preferences.subjects = subject.classList.contains("selected")
-          ? [...new Set([...preferences.subjects, name])]
-          : preferences.subjects.filter((value) => value !== name);
-      }
-      const goal = event.target.closest('[data-choice="goal"] button');
-      if (goal) {
-        overlay
-          .querySelectorAll('[data-choice="goal"] button')
-          .forEach((button) =>
-            button.classList.toggle("selected", button === goal),
-          );
-        preferences.goal = goal.dataset.value;
-      }
-    });
+    overlay.querySelector(".ob-back").onclick = () => show(index - 1);
+    overlay.querySelector(".ob-next").onclick = advance;
+    overlay.addEventListener("click", handleChoice);
+    overlay.addEventListener("input", handleInput);
     overlay.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") finish();
-      if (event.key === "ArrowRight" && index < steps.length - 1)
-        show(index + 1, 1);
-      if (event.key === "ArrowLeft" && index > 0) show(index - 1, -1);
+      if (event.key === "Enter" && event.target.tagName !== "BUTTON") {
+        event.preventDefault();
+        advance();
+      }
     });
   }
 
-  function show(nextIndex, direction = 1) {
+  function handleInput(event) {
+    if (event.target.id === "obName") profile.name = event.target.value.trim();
+    if (event.target.id === "obCourse") profile.course = event.target.value.trim();
+  }
+
+  function handleChoice(event) {
+    const button = event.target.closest(".ob-option");
+    if (!button) return;
+    const group = button.closest("[data-single],[data-multi]");
+    const value = button.dataset.value;
+    if (group.dataset.single) {
+      profile[group.dataset.single] = value;
+      group.querySelectorAll(".ob-option").forEach((candidate) =>
+        candidate.classList.toggle("selected", candidate === button),
+      );
+    } else {
+      const key = group.dataset.multi;
+      const values = profile[key];
+      if (values.includes(value)) profile[key] = values.filter((item) => item !== value);
+      else {
+        const limit = Number(group.dataset.limit || 99);
+        if (values.length >= limit) return showError(`Choose up to ${limit}.`);
+        profile[key] = [...values, value];
+      }
+      button.classList.toggle("selected", profile[key].includes(value));
+      const count = overlay.querySelector(".ob-selection-count span");
+      if (count) count.textContent = profile[key].length;
+    }
+    showError("");
+  }
+
+  function restoreSelections() {
+    overlay.querySelectorAll("[data-single]").forEach((group) => {
+      group.querySelectorAll(".ob-option").forEach((button) =>
+        button.classList.toggle("selected", profile[group.dataset.single] === button.dataset.value),
+      );
+    });
+    overlay.querySelectorAll("[data-multi]").forEach((group) => {
+      group.querySelectorAll(".ob-option").forEach((button) =>
+        button.classList.toggle("selected", profile[group.dataset.multi].includes(button.dataset.value)),
+      );
+    });
+  }
+
+  function showError(message) {
+    overlay.querySelector(".ob-error").textContent = message;
+  }
+
+  function validate() {
+    const step = steps[index].id;
+    if (step === "context" && !profile.level) return "Choose your current level.";
+    if (step === "subjects" && !profile.subjects.length) return "Choose at least one subject.";
+    if (step === "friction" && !profile.friction.length) return "Choose at least one place where you get stuck.";
+    if (step === "tutoring" && !profile.primary_goal) return "Choose what matters most right now.";
+    return "";
+  }
+
+  function show(nextIndex) {
     index = Math.max(0, Math.min(steps.length - 1, nextIndex));
     const step = steps[index];
-    const shell = overlay.querySelector(".ob-shell");
-    shell.classList.remove("moving-forward", "moving-back");
-    void shell.offsetWidth;
-    shell.classList.add(direction < 0 ? "moving-back" : "moving-forward");
-    overlay.querySelector(".ob-scene").innerHTML = sceneMarkup(step.scene);
-    if (window.renderMathInElement)
-      window.renderMathInElement(overlay.querySelector(".ob-scene"), {
-        delimiters: [
-          { left: "\\(", right: "\\)", display: false },
-          { left: "\\[", right: "\\]", display: true },
-        ],
-        throwOnError: false,
-      });
-    if (step.scene === "personalize") {
-      overlay
-        .querySelectorAll('[data-choice="subjects"] button')
-        .forEach((button) =>
-          button.classList.toggle(
-            "selected",
-            preferences.subjects.includes(button.textContent.trim()),
-          ),
-        );
-      overlay
-        .querySelectorAll('[data-choice="goal"] button')
-        .forEach((button) =>
-          button.classList.toggle(
-            "selected",
-            button.dataset.value === preferences.goal,
-          ),
-        );
-    }
-    overlay.querySelector(".ob-eyebrow").textContent = step.eyebrow;
+    overlay.querySelector(".ob-kicker").textContent = step.kicker;
     overlay.querySelector("h1").textContent = step.title;
-    overlay.querySelector(".ob-copy > p").textContent = step.copy;
-    overlay.querySelector(".ob-step-label").textContent =
-      `${String(index + 1).padStart(2, "0")} / ${String(steps.length).padStart(2, "0")}`;
+    overlay.querySelector(".ob-description").textContent = step.description;
+    overlay.querySelector(".ob-screen").innerHTML = screen(step);
+    overlay.querySelector(".ob-main").scrollTop = 0;
+    restoreSelections();
+    showError("");
     overlay.querySelector(".ob-back").disabled = index === 0;
-    overlay.querySelector(".ob-next span").textContent =
-      index === steps.length - 1 ? "Enter your workspace" : "Continue";
-    overlay.querySelector(".ob-next b").textContent =
-      index === steps.length - 1 ? "✓" : "→";
-    const dots = overlay.querySelector(".ob-dots");
-    dots.replaceChildren();
-    steps.forEach((_, dotIndex) => {
-      const dot = document.createElement("button");
-      dot.type = "button";
-      dot.className = dotIndex === index ? "active" : "";
-      dot.setAttribute("aria-label", `Go to step ${dotIndex + 1}`);
-      dot.onclick = () => show(dotIndex, dotIndex > index ? 1 : -1);
-      dots.append(dot);
+    overlay.querySelector(".ob-next span").textContent = index === steps.length - 1 ? "Finish setup" : "Continue";
+    overlay.querySelector(".ob-next b").textContent = index === steps.length - 1 ? "✓" : "→";
+    overlay.querySelector(".ob-mobile-count").textContent = `${index + 1} of ${steps.length}`;
+    const progress = overlay.querySelector(".ob-progress");
+    progress.replaceChildren();
+    steps.forEach((item, stepIndex) => {
+      const row = document.createElement("li");
+      row.className = stepIndex === index ? "active" : stepIndex < index ? "complete" : "";
+      row.innerHTML = `<i>${stepIndex < index ? "✓" : stepIndex + 1}</i><span>${["About you", "Subjects", "Sticking points", "Tutor style"][stepIndex]}</span>`;
+      progress.append(row);
     });
+    const firstInput = overlay.querySelector("input");
+    if (firstInput) setTimeout(() => firstInput.focus(), 80);
   }
 
-  async function finish() {
+  async function advance() {
+    const error = validate();
+    if (error) return showError(error);
+    if (index < steps.length - 1) return show(index + 1);
     if (finishing) return;
     finishing = true;
-    const next = overlay.querySelector(".ob-next");
-    const error = overlay.querySelector(".ob-error");
-    next.disabled = true;
-    error.textContent = "";
+    const button = overlay.querySelector(".ob-next");
+    button.disabled = true;
+    button.querySelector("span").textContent = "Saving…";
     try {
-      await completeCallback?.(preferences);
+      await completeCallback?.({ ...profile, subjects: [...profile.subjects], friction: [...profile.friction] });
       overlay.classList.add("leaving");
       setTimeout(() => {
         overlay.hidden = true;
-        overlay.classList.remove("leaving");
+        overlay.classList.remove("entered", "leaving");
         document.documentElement.classList.remove("onboarding-open");
         active = false;
         finishing = false;
-      }, 520);
-    } catch (exception) {
-      error.textContent =
-        exception.message || "Couldn’t save your preferences. Try again.";
+      }, 260);
+    } catch (error) {
+      showError(error.message || "Couldn’t save your setup. Try again.");
+      button.disabled = false;
+      button.querySelector("span").textContent = "Finish setup";
       finishing = false;
-      next.disabled = false;
     }
   }
 
-  function start({ complete } = {}) {
+  function start({ complete, initial } = {}) {
     if (active) return;
     if (!overlay) build();
     active = true;
     finishing = false;
     completeCallback = complete;
     index = 0;
-    preferences.subjects = [];
-    preferences.goal = "understand";
+    Object.assign(profile, {
+      name: initial?.name || "",
+      level: initial?.level || "",
+      subjects: Array.isArray(initial?.subjects) ? [...initial.subjects] : [],
+      course: initial?.course || "",
+      friction: Array.isArray(initial?.friction) ? [...initial.friction] : [],
+      help_style: initial?.help_style || "questions",
+      primary_goal: initial?.primary_goal || "",
+    });
     document.documentElement.classList.add("onboarding-open");
     overlay.hidden = false;
     requestAnimationFrame(() => overlay.classList.add("entered"));
-    show(0, 1);
-    overlay.querySelector(".ob-next").focus();
+    show(0);
   }
 
   window.StriveOnboarding = { start, isActive: () => active };
+  if (
+    ["127.0.0.1", "localhost"].includes(location.hostname) &&
+    new URLSearchParams(location.search).has("preview-onboarding")
+  )
+    window.addEventListener("load", () => start({ complete: async () => {} }));
 })();

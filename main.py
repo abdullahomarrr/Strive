@@ -82,6 +82,7 @@ class FrontendRequest(BaseModel):
     action_type: Literal["check_logic", "get_hint"]
     is_selection: bool = False
     hint_focus: Optional[Literal["start", "next_step", "rule", "direction"]] = None
+    learner_profile: Optional[dict] = None
 
 
 class MathTutorResponse(BaseModel):
@@ -419,6 +420,14 @@ async def tutor(request: FrontendRequest):
             "Please evaluate the specific highlighted math problem or proof in this cropped image."
             if request.is_selection
             else "Please evaluate ALL handwritten and typed math problems/proofs visible on this canvas from top to bottom. If there are multiple errors, return an ErrorItem for each one in 'errors'."
+        )
+
+    if request.learner_profile:
+        profile = json.dumps(request.learner_profile, ensure_ascii=True)[:1500]
+        prompt_text += (
+            " Adapt the vocabulary, depth, and hint phrasing to this learner profile, "
+            "while preserving mathematical rigor and all answer-withholding rules: "
+            f"{profile}"
         )
 
     last_error = None
