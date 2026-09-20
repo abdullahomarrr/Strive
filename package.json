@@ -1,0 +1,19 @@
+{
+  "name": "strive-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "vendor": "node scripts/vendor-assets.mjs",
+    "build:web": "npm run vendor && node scripts/build-frontend.mjs",
+    "desktop:dev": "tauri dev",
+    "desktop:build": "tauri build"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.57.4",
+    "katex": "^0.16.22"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.11.4"
+  }
+}

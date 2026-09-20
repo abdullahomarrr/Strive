@@ -8,18 +8,18 @@
     <link rel="stylesheet" href="/static/app.css" />
     <link rel="stylesheet" href="/static/paper-picker.css" />
     <link rel="stylesheet" href="/static/analytics.css" />
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css"
-    />
+    <link rel="stylesheet" href="/static/onboarding.css" />
+    <link rel="stylesheet" href="/static/vendor/katex/katex.min.css" />
+    <script defer src="/static/vendor/katex/katex.min.js"></script>
     <script
       defer
-      src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"
+      src="/static/vendor/katex/contrib/auto-render.min.js"
     ></script>
-    <script
-      defer
-      src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
-    ></script>
+    <script defer src="/static/vendor/supabase/supabase.js"></script>
+    <script defer src="/static/desktop-config.js"></script>
+    <script defer src="/static/runtime.js"></script>
+    <script defer src="/static/onboarding.js"></script>
+    <script defer src="/static/supabase-sync.js"></script>
     <script defer src="/static/app.js"></script>
     <script defer src="/static/paper-picker.js"></script>
     <script defer src="/static/selects.js"></script>
@@ -34,8 +34,7 @@
           title="Notebook library"
           aria-label="Notebook library"
         >
-          <span class="brand-mark" data-icon="brand"></span
-          ><span>strive<span class="brand-dot">.</span></span>
+          <span>strive<span class="brand-dot">.</span></span>
         </button>
         <div
           id="notebookTabs"
@@ -50,13 +49,16 @@
           title="New notebook"
           data-icon="plus"
         ></button>
+        <button id="accountButton" class="account-button" type="button" hidden>
+          <span data-icon="user"></span><span id="accountLabel">Sign in</span>
+        </button>
         <span class="app-caption">A LITTLE ROOM TO THINK</span>
       </header>
       <main id="library" class="library">
         <div class="library-top">
           <div class="eyebrow">YOUR WORKSPACE</div>
-          <span class="local-note"
-            ><i data-icon="device"></i> Saved on this device</span
+          <span class="local-note" id="librarySaveStatus"
+            ><i data-icon="device"></i> Saved for today</span
           >
         </div>
         <div class="library-heading">
@@ -107,14 +109,14 @@
             >
               <span id="documentTitle"></span
               ><i data-icon="chevronDown"></i></button
-            ><span id="saveStatus" class="save-status"
-              >Saved on this device</span
-            >
+            ><span id="saveStatus" class="save-status">Saved for today</span>
           </div>
           <div class="document-actions">
             <button class="button quiet" id="openMastery">
               <i data-icon="chart"></i><span>Progress</span></button
             ><span class="divider"></span
+            ><button class="button mark-button" id="markWork">
+              <span>Mark solution</span></button
             ><button class="button check-button" id="checkWork">
               <i data-icon="checkCircle"></i><span>Check work</span></button
             ><button
@@ -335,6 +337,7 @@
                     id="pageCanvas"
                     aria-label="Notebook page. Select Text to type or Pen to draw."
                   ></canvas>
+                  <div id="walkthroughLayer" class="walkthrough-layer"></div>
                   <div id="errorPins" class="error-pins"></div>
                   <div id="selection" class="selection" hidden></div>
                   <div id="textEditor" class="text-editor" hidden>
@@ -403,6 +406,13 @@
               <button id="getHint" class="button hint-button">
                 Give me a nudge
               </button>
+              <button
+                id="startWalkthrough"
+                class="button walkthrough-button"
+                hidden
+              >
+                Walk me through it
+              </button>
             </div>
             <div id="progressView" class="panel-content" hidden>
               <div id="progressContent"></div>
@@ -453,10 +463,96 @@
           <option value="dotted">Dotted paper</option>
         </select>
         <div class="dialog-footer">
+          <button
+            type="button"
+            id="deleteNotebook"
+            class="button danger"
+            hidden
+          >
+            Delete notebook
+          </button>
           <button type="button" id="cancelDialog" class="button quiet">
             Cancel</button
           ><button type="submit" class="button primary" id="saveNotebook">
             Create notebook <i data-icon="arrowRight"></i>
+          </button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="authDialog" class="auth-dialog">
+      <form id="authForm">
+        <div class="dialog-heading auth-heading">
+          <div>
+            <span class="eyebrow">YOUR WORK, EVERYWHERE</span>
+            <h2 id="authTitle">Welcome back</h2>
+          </div>
+          <button
+            type="button"
+            id="closeAuth"
+            class="icon-button"
+            aria-label="Close"
+            data-icon="close"
+          ></button>
+        </div>
+        <div id="authSignedOut">
+          <div class="auth-tabs" role="tablist">
+            <button type="button" class="active" data-auth-mode="signin">
+              Sign in
+            </button>
+            <button type="button" data-auth-mode="signup">
+              Create account
+            </button>
+          </div>
+          <label for="authEmail">Email</label>
+          <input
+            id="authEmail"
+            type="email"
+            required
+            autocomplete="email"
+            placeholder="you@example.com"
+          />
+          <label for="authPassword">Password</label>
+          <input
+            id="authPassword"
+            type="password"
+            required
+            minlength="8"
+            autocomplete="current-password"
+            placeholder="At least 8 characters"
+          />
+          <p id="authMessage" class="auth-message" role="status"></p>
+          <button
+            id="authSubmit"
+            type="submit"
+            class="button primary auth-submit"
+          >
+            Sign in
+          </button>
+          <button id="forgotPassword" type="button" class="auth-link">
+            Forgot your password?
+          </button>
+        </div>
+        <div id="authSignedIn" hidden>
+          <div class="account-card">
+            <span data-icon="user"></span>
+            <div>
+              <strong id="accountEmail"></strong
+              ><small id="accountSyncState">Your notebooks are synced.</small>
+            </div>
+          </div>
+          <p class="auth-copy">
+            Strive keeps a local copy on this device and securely syncs your
+            notebooks whenever you’re online.
+          </p>
+          <button
+            id="syncNow"
+            type="button"
+            class="button check-button auth-submit"
+          >
+            Sync now
+          </button>
+          <button id="signOut" type="button" class="button quiet auth-submit">
+            Sign out
           </button>
         </div>
       </form>

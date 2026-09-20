@@ -4,3 +4,8 @@ __pycache__/
 .DS_Store
 .venv/
 env/
+node_modules/
+dist/
+src-tauri/target/
+src-tauri/gen/
+*.key

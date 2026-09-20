@@ -31,6 +31,7 @@
     trash: '<path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/>',
     fit: '<path d="M8 4H4v4m12-4h4v4M4 16v4h4m12-4v4h-4M8 12h8m-6-2-2 2 2 2m4-4 2 2-2 2"/>',
     copy: '<rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V3H3v13h5"/>',
+    user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
   };
   const icon = (name) =>
     `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[name] || paths.brand}</svg>`;
@@ -102,7 +103,13 @@
   const id = () => crypto.randomUUID();
   const WIDTH = 850,
     HEIGHT = 1100,
-    STORE = "folio_notebooks_v1";
+    STORE = "folio_notebooks_v1",
+    GUEST_DAY = "strive_guest_workspace_day_v1",
+    ACTIVE_SYNC_USER = "strive_active_sync_user_v1";
+  const localDay = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  };
   const coverColors = [
     "#476f66",
     "#49647d",
@@ -162,6 +169,8 @@
     selectedCover = coverColors[0],
     requestController = null,
     requestVersion = 0,
+    walkthroughState = null,
+    markingState = null,
     toastTimer;
   const undoStacks = new Map(),
     redoStacks = new Map();
@@ -170,6 +179,14 @@
     $("toast").hidden = false;
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => ($("toast").hidden = true), 4000);
+  }
+  if (!localStorage.getItem(ACTIVE_SYNC_USER)) {
+    const today = localDay();
+    if (localStorage.getItem(GUEST_DAY) !== today) {
+      localStorage.removeItem(STORE);
+      localStorage.removeItem("strive_anonymous_workspace_v1");
+    }
+    localStorage.setItem(GUEST_DAY, today);
   }
   try {
     const raw = localStorage.getItem(STORE);
@@ -189,13 +206,6 @@
     );
     dirty = true;
   }
-  if (!books.length && !dirty) {
-    books = [
-      newBook("Calculus I", coverColors[0], "grid"),
-      newBook("Discrete mathematics", coverColors[1], "lined"),
-      newBook("Room to think", coverColors[2]),
-    ];
-  }
   const book = () => books.find((b) => b.id === activeId),
     page = () => book()?.pages[pageIndex];
   window.getFolioAnalyticsContext = () => ({
@@ -206,11 +216,14 @@
       if (index >= 0) setPage(index);
     },
   });
-  function persist() {
+  function persist(syncCloud = true) {
     try {
       localStorage.setItem(STORE, JSON.stringify({ books, tabs }));
-      $("saveStatus").textContent = "Saved on this device";
+      $("saveStatus").textContent = window.StriveCloud?.isSignedIn?.()
+        ? "Saved locally"
+        : "Saved for today";
       dirty = false;
+      if (syncCloud) window.StriveCloud?.queueSync();
       return true;
     } catch (e) {
       dirty = true;
@@ -227,6 +240,41 @@
     persist();
     renderPages();
     updateUndo();
+  }
+  function applyCloudState(state) {
+    if (!Array.isArray(state?.books)) return;
+    books = state.books;
+    tabs = (state.tabs || tabs).filter((tabId) =>
+      books.some((notebook) => notebook.id === tabId),
+    );
+    localStorage.setItem(STORE, JSON.stringify({ books, tabs }));
+    if (activeId && !books.some((notebook) => notebook.id === activeId)) {
+      showLibrary();
+      return;
+    }
+    renderTabs();
+    renderLibrary();
+    if (activeId) {
+      pageIndex = Math.min(pageIndex, book().pages.length - 1);
+      $("documentTitle").textContent = book().title;
+      renderPages();
+      draw();
+      renderProgress();
+    }
+  }
+  function updateCloudStatus(status) {
+    const labels = {
+      local: "Saved for today",
+      syncing: "Syncing…",
+      synced: "Synced",
+      offline: "Saved offline",
+      error: "Sync needs attention",
+    };
+    const label = labels[status] || labels.local;
+    $("saveStatus").textContent = label;
+    const libraryStatus = $("librarySaveStatus");
+    if (libraryStatus)
+      libraryStatus.innerHTML = `${icon(status === "synced" ? "checkCircle" : "device")} ${label}`;
   }
   window.addEventListener("beforeunload", (event) => {
     if (dirty) {
@@ -295,6 +343,7 @@
     cancelText();
     $("selection").hidden = true;
     $("errorPins").replaceChildren();
+    clearWalkthrough();
     emptyFeedback();
     updateCheckLabel();
   }
@@ -411,6 +460,7 @@
     $("notebookName").value = rename ? book().title : "";
     $("newPaper").value = rename ? page().paper : "blank";
     $("newPaper").disabled = rename;
+    $("deleteNotebook").hidden = !rename;
     $("saveNotebook").innerHTML =
       (rename ? "Save changes" : "Create notebook") + icon("arrowRight");
     renderCoverColors();
@@ -462,6 +512,22 @@
   );
   $("homeButton").onclick = showLibrary;
   $("renameNotebook").onclick = () => openNotebookDialog(true);
+  $("deleteNotebook").onclick = () => {
+    const target = book();
+    if (!target) return;
+    if (
+      !confirm(
+        `Delete “${target.title}”? This removes it from every synced device.`,
+      )
+    )
+      return;
+    books = books.filter((notebook) => notebook.id !== target.id);
+    tabs = tabs.filter((tabId) => tabId !== target.id);
+    window.StriveCloud?.deleteNotebook(target.id);
+    $("notebookDialog").close();
+    persist();
+    showLibrary();
+  };
   ["closeDialog", "cancelDialog"].forEach(
     (key) => ($(key).onclick = () => $("notebookDialog").close()),
   );
@@ -1245,6 +1311,13 @@
     pinch = null;
   });
   function math(el) {
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    const textNodes = [];
+    while (walker.nextNode()) textNodes.push(walker.currentNode);
+    textNodes.forEach((node) => {
+      if (!node.parentElement?.closest(".katex"))
+        node.nodeValue = normalizeMathDelimiters(node.nodeValue);
+    });
     if (window.renderMathInElement)
       window.renderMathInElement(el, {
         delimiters: [
@@ -1257,6 +1330,44 @@
         trust: false,
       });
   }
+  function normalizeMathDelimiters(value) {
+    let text = String(value ?? "");
+    const outsideMath = (transform) =>
+      text
+        .split(/(\$\$[\s\S]*?\$\$|\$(?:\\.|[^$])*?\$)/g)
+        .map((part, index) => (index % 2 ? part : transform(part)))
+        .join("");
+    text = outsideMath((part) =>
+      part.replace(
+        /\b(?:[A-Za-z]|d[A-Za-z])(?:\([^\n,.;:]*?\))?\s*=\s*[^\n,.;:]+/g,
+        (expression) => `$${expression.trim()}$`,
+      ),
+    );
+    text = outsideMath((part) =>
+      part.replace(
+        /\\(?:int|sum|prod|lim|frac|sqrt|begin|vec|mathbf|mathbb)\b[^\n,.;:]*/g,
+        (expression) => `$${expression.trim()}$`,
+      ),
+    );
+    text = outsideMath((part) =>
+      part.replace(
+        /\b[A-Za-z](?:\^\{?[-+]?\d+\}?|_\{?[A-Za-z0-9]+\}?)(?:\s*[+\-*/]\s*[A-Za-z0-9^{}()]+)*/g,
+        (expression) => `$${expression}$`,
+      ),
+    );
+    text = outsideMath((part) =>
+      part.replace(
+        /\b(?:dx|dy|du|dt|dv|dw)\b/g,
+        (expression) => `$${expression}$`,
+      ),
+    );
+    return text;
+  }
+  function mathText(element, value) {
+    element.textContent = normalizeMathDelimiters(value);
+    math(element);
+  }
+  window.StriveNormalizeMath = normalizeMathDelimiters;
   function openPanel(view = "feedback") {
     $("tutorPanel").hidden = false;
     $("tutorPanel").classList.toggle("progress-mode", view === "progress");
@@ -1285,13 +1396,17 @@
     .querySelectorAll("[data-panel]")
     .forEach((btn) => (btn.onclick = () => openPanel(btn.dataset.panel)));
   function emptyFeedback() {
+    $("startWalkthrough").hidden = true;
+    $("getHint").hidden = false;
     $("feedbackContent").innerHTML =
       `<div class="empty-tutor"><div class="tutor-glyph">${icon("spark")}</div><h3>A nudge in the<br>right direction.</h3><p>Work through a problem at your own pace. When you need a second look, I’m here to help you find your next step.</p><div class="tutor-tip">Check the whole page, or use the selection tool to focus on a particular part.</div></div>`;
   }
   function setBusy(busy) {
     $("checkWork").disabled = busy;
+    $("markWork").disabled = busy;
     $("toggleTutor").disabled = busy;
     $("getHint").disabled = busy;
+    $("startWalkthrough").disabled = busy;
     $("analyzeProgress").disabled = busy;
     selectionCheck.disabled = busy;
     selectionHint.disabled = busy;
@@ -1308,7 +1423,7 @@
     $("feedbackContent").append(p);
   }
   async function api(path, payload) {
-    const response = await fetch(path, {
+    const response = await fetch(window.striveApiUrl(path), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -1322,6 +1437,412 @@
           : `The tutor is unavailable (HTTP ${response.status}). Try again in a moment.`,
       );
     return data;
+  }
+  function clearWalkthrough() {
+    walkthroughState = null;
+    $("walkthroughLayer")?.replaceChildren();
+    if ($("walkthroughLayer")) $("walkthroughLayer").hidden = false;
+  }
+  function showWalkthroughStep(index) {
+    if (!walkthroughState) return;
+    walkthroughState.visible = Math.max(
+      walkthroughState.visible,
+      Math.min(index, walkthroughState.steps.length - 1),
+    );
+    walkthroughState.elements.forEach((element, stepIndex) => {
+      const wasHidden = element.hidden;
+      element.hidden = stepIndex > walkthroughState.visible;
+      element.classList.toggle(
+        "current",
+        stepIndex === walkthroughState.visible,
+      );
+      if (stepIndex <= walkthroughState.visible)
+        element.classList.add("revealed");
+      if (wasHidden && stepIndex === walkthroughState.visible) {
+        element.classList.remove("writing");
+        void element.offsetWidth;
+        element.classList.add("writing");
+      }
+    });
+    const step = walkthroughState.steps[walkthroughState.visible];
+    const root = $("feedbackContent");
+    root.querySelector(".walkthrough-position").textContent =
+      `Step ${walkthroughState.visible + 1} of ${walkthroughState.steps.length}`;
+    const detail = root.querySelector(".walkthrough-current");
+    detail.replaceChildren();
+    [
+      ["Goal", step.goal],
+      ["Why", step.reason],
+      ["Check", step.check],
+    ].forEach(([label, value]) => {
+      const row = document.createElement("div");
+      const strong = document.createElement("strong");
+      strong.textContent = label;
+      const paragraph = document.createElement("p");
+      mathText(paragraph, value);
+      row.append(strong, paragraph);
+      detail.append(row);
+    });
+    const next = root.querySelector(".walkthrough-next");
+    next.hidden = walkthroughState.visible >= walkthroughState.steps.length - 1;
+    if (!next.hidden)
+      next.textContent =
+        walkthroughState.visible === 0 ? "Show the next step" : "Continue";
+  }
+  function walkthroughInkBounds(scope) {
+    const region = scope || { x: 0, y: 0, w: WIDTH, h: HEIGHT };
+    const bounds = [];
+    page().items.forEach((item) => {
+      let itemBounds;
+      if (item.type === "text") {
+        const lines = String(item.text || "").split("\n");
+        itemBounds = {
+          left: item.x,
+          top: item.y,
+          right:
+            item.x +
+            Math.min(
+              WIDTH - item.x,
+              Math.max(...lines.map((line) => line.length), 1) *
+                item.size *
+                0.62,
+            ),
+          bottom: item.y + Math.max(1, lines.length) * item.size * 1.5,
+        };
+      } else if (item.points?.length) {
+        const padding = Math.max(5, Number(item.width || 2) * 1.5);
+        const xs = item.points.map((point) => point.x);
+        const ys = item.points.map((point) => point.y);
+        itemBounds = {
+          left: Math.min(...xs) - padding,
+          top: Math.min(...ys) - padding,
+          right: Math.max(...xs) + padding,
+          bottom: Math.max(...ys) + padding,
+        };
+      }
+      if (
+        itemBounds &&
+        itemBounds.right >= region.x &&
+        itemBounds.left <= region.x + region.w &&
+        itemBounds.bottom >= region.y &&
+        itemBounds.top <= region.y + region.h
+      )
+        bounds.push(itemBounds);
+    });
+    if (!bounds.length)
+      return {
+        left: region.x,
+        right: region.x + region.w,
+        top: region.y,
+        bottom: region.y + region.h,
+      };
+    return {
+      left: Math.min(...bounds.map((value) => value.left)),
+      right: Math.max(...bounds.map((value) => value.right)),
+      top: Math.min(...bounds.map((value) => value.top)),
+      bottom: Math.max(...bounds.map((value) => value.bottom)),
+    };
+  }
+  function renderWalkthrough(data, scope) {
+    clearFeedbackPins();
+    clearWalkthrough();
+    const layer = $("walkthroughLayer");
+    const inkBounds = walkthroughInkBounds(scope);
+    const baseX = Math.max(22, Math.min(WIDTH - 650, inkBounds.left + 12));
+    const elements = (data.steps || []).map((step, index) => {
+      const element = document.createElement("section");
+      element.className = "tutor-ink-step";
+      element.style.left = baseX + "px";
+      element.style.top = "0px";
+      element.style.setProperty("--ink-tilt", `${index % 2 ? 0.35 : -0.25}deg`);
+      element.style.setProperty(
+        "--write-duration",
+        `${Math.max(1.1, Math.min(3.2, 0.8 + String(step.latex).length * 0.035))}s`,
+      );
+      element.style.visibility = "hidden";
+      const line = document.createElement("div");
+      line.className = "tutor-ink-line";
+      line.textContent = `$$${step.latex}$$`;
+      const note = document.createElement("div");
+      note.className = "tutor-ink-note";
+      note.innerHTML = `<span>STEP ${index + 1}</span><p></p>`;
+      mathText(note.querySelector("p"), step.reason);
+      element.append(line, note);
+      layer.append(element);
+      math(line);
+      if (line.scrollWidth + 376 > WIDTH - baseX - 24)
+        element.classList.add("stack-note");
+      return element;
+    });
+    const stepHeights = elements.map((element) =>
+      Math.max(62, element.getBoundingClientRect().height / zoom),
+    );
+    const totalHeight =
+      stepHeights.reduce((sum, height) => sum + height, 0) +
+      Math.max(0, stepHeights.length - 1) * 12;
+    let baseY = inkBounds.bottom + 12;
+    if (baseY + totalHeight > HEIGHT - 18)
+      baseY = Math.max(inkBounds.top, HEIGHT - totalHeight - 18);
+    let nextTop = baseY;
+    elements.forEach((element, index) => {
+      element.style.top = nextTop + "px";
+      element.style.visibility = "";
+      element.hidden = true;
+      nextTop += stepHeights[index] + 12;
+    });
+    walkthroughState = {
+      steps: data.steps || [],
+      elements,
+      visible: 0,
+    };
+    const root = $("feedbackContent");
+    root.innerHTML = `<div class="feedback-status walkthrough-status">${icon("spark")}Guided walkthrough</div><p class="feedback-summary"></p><div class="walkthrough-position"></div><div class="walkthrough-current"></div><div class="walkthrough-controls"><button type="button" class="button walkthrough-next">Show the next step</button><button type="button" class="button quiet walkthrough-visibility">Hide tutor ink</button><button type="button" class="walkthrough-retry">Clear tutor ink & retry</button></div>`;
+    mathText(root.querySelector(".feedback-summary"), data.problem_summary);
+    root.querySelector(".walkthrough-next").onclick = () =>
+      showWalkthroughStep(walkthroughState.visible + 1);
+    root.querySelector(".walkthrough-visibility").onclick = (event) => {
+      layer.hidden = !layer.hidden;
+      event.currentTarget.textContent = layer.hidden
+        ? "Show tutor ink"
+        : "Hide tutor ink";
+    };
+    root.querySelector(".walkthrough-retry").onclick = () => {
+      clearWalkthrough();
+      $("startWalkthrough").hidden = true;
+      root.innerHTML = `<div class="feedback-status">${icon("checkCircle")}Your turn</div><p class="feedback-summary">Tutor ink is cleared. Try the problem again from the point where you got stuck.</p>`;
+    };
+    $("startWalkthrough").hidden = true;
+    $("getHint").hidden = true;
+    if (walkthroughState.steps.length) showWalkthroughStep(0);
+  }
+  async function startGuidedWalkthrough() {
+    finishDrawing();
+    if (!$("textEditor").hidden) commitText();
+    if (!page().items.length) return notify("Add some working first.");
+    cancelRequest();
+    requestController = new AbortController();
+    const scope = selection ? { ...selection } : null;
+    const output = document.createElement("canvas");
+    output.width = Math.ceil(scope?.w || WIDTH);
+    output.height = Math.ceil(scope?.h || HEIGHT);
+    renderPage(output, page(), null, scope);
+    setBusy(true);
+    clearWalkthrough();
+    $("feedbackContent").innerHTML =
+      '<div class="feedback-status"><span class="loading-dot"></span>Preparing tutor ink</div><p class="feedback-summary">Breaking the remaining work into teachable steps…</p>';
+    try {
+      const data = await api("/walkthrough", {
+        image_data: output.toDataURL("image/png").split(",")[1],
+        action_type: "get_hint",
+        is_selection: !!scope,
+      });
+      renderWalkthrough(data, scope);
+      const targetBook = book();
+      targetBook.guidedSessions = targetBook.guidedSessions || [];
+      targetBook.guidedSessions.push({
+        timestamp: new Date().toISOString(),
+        pageId: page().id,
+        stepCount: data.steps.length,
+      });
+      changed();
+    } catch (error) {
+      feedbackError(error.message || "Couldn’t create the walkthrough.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  const formatMark = (value) =>
+    Number.isInteger(Number(value))
+      ? String(Number(value))
+      : Number(value).toFixed(1);
+  function addMarkAnnotation(
+    annotationData,
+    scope,
+    questionIndex,
+    annotationIndex,
+  ) {
+    const x = Math.max(
+      0.025,
+      Math.min(0.975, Number(annotationData.location_x) || 0.5),
+    );
+    const y = Math.max(
+      0.025,
+      Math.min(0.975, Number(annotationData.location_y) || 0.5),
+    );
+    const pageX = (scope?.x || 0) + x * (scope?.w || WIDTH);
+    const pageY = (scope?.y || 0) + y * (scope?.h || HEIGHT);
+    const paperRect = $("paper").getBoundingClientRect();
+    const viewportRect = viewport.getBoundingClientRect();
+    const anchorScreenX = paperRect.left + pageX * zoom;
+    const annotation = document.createElement("div");
+    const tone = annotationData.annotation_type || "presentation";
+    annotation.className = `error-annotation mark-annotation ${tone}${viewportRect.right - anchorScreenX < 355 ? " align-left" : ""}`;
+    annotation.style.left = pageX + "px";
+    annotation.style.top = pageY + "px";
+    const pin = document.createElement("button");
+    pin.className = "error-pin";
+    const delta = Number(annotationData.marks_delta) || 0;
+    pin.textContent = `${delta > 0 ? "+" : delta < 0 ? "−" : ""}${formatMark(Math.abs(delta))}`;
+    pin.setAttribute("aria-label", annotationData.label);
+    const note = document.createElement("div");
+    note.className = "error-note";
+    note.tabIndex = 0;
+    note.setAttribute("role", "button");
+    const label = document.createElement("span");
+    label.className = "error-note-label";
+    mathText(label, annotationData.label);
+    const message = document.createElement("span");
+    message.className = "error-note-message";
+    mathText(message, annotationData.message);
+    const close = document.createElement("button");
+    close.className = "error-note-close";
+    close.type = "button";
+    close.textContent = "×";
+    close.setAttribute("aria-label", "Dismiss marking annotation");
+    note.append(label, message, close);
+    const open = () => {
+      openPanel();
+      document
+        .getElementById(`mark-question-${questionIndex}`)
+        ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    };
+    pin.onclick = open;
+    note.onclick = open;
+    close.onclick = (event) => {
+      event.stopPropagation();
+      annotation.remove();
+    };
+    annotation.dataset.markQuestion = questionIndex;
+    annotation.dataset.markAnnotation = annotationIndex;
+    annotation.append(pin, note);
+    $("errorPins").append(annotation);
+    placeAnnotationWithoutOverlap(annotation);
+    return annotation;
+  }
+  function renderMarking(data, scope, previousTotal = null) {
+    clearWalkthrough();
+    clearFeedbackPins();
+    const root = $("feedbackContent");
+    root.replaceChildren();
+    const header = document.createElement("div");
+    header.className = "marking-header";
+    const total = document.createElement("div");
+    total.className = "marking-total";
+    total.innerHTML = `<span>ESTIMATED MARK</span><strong>${formatMark(data.total_awarded)} <small>/ ${formatMark(data.total_available)}</small></strong>`;
+    header.append(total);
+    if (previousTotal !== null) {
+      const change = Number(data.total_awarded) - Number(previousTotal);
+      const delta = document.createElement("div");
+      delta.className = `marking-change ${change > 0 ? "up" : ""}`;
+      delta.textContent =
+        change > 0
+          ? `+${formatMark(change)} recovered`
+          : change < 0
+            ? `${formatMark(change)} since last mark`
+            : "No mark change";
+      header.append(delta);
+    }
+    root.append(header);
+    const overview = document.createElement("p");
+    overview.className = "feedback-summary";
+    mathText(overview, data.overall_feedback);
+    root.append(overview);
+    const annotationElements = [];
+    (data.questions || []).forEach((question, questionIndex) => {
+      const card = document.createElement("section");
+      card.className = "marking-question";
+      card.id = `mark-question-${questionIndex}`;
+      const heading = document.createElement("button");
+      heading.type = "button";
+      heading.className = "marking-question-heading";
+      heading.innerHTML = `<span><b></b><small></small></span><strong>${formatMark(question.marks_awarded)} / ${formatMark(question.marks_available)}</strong>`;
+      mathText(heading.querySelector("b"), question.question_label);
+      mathText(heading.querySelector("small"), question.question_type);
+      card.append(heading);
+      const intent = document.createElement("p");
+      intent.className = "marking-intent";
+      mathText(intent, question.task_intent);
+      card.append(intent);
+      const basis = document.createElement("div");
+      basis.className = "marking-basis";
+      mathText(basis, question.rubric_basis);
+      card.append(basis);
+      const rubric = document.createElement("div");
+      rubric.className = "marking-rubric";
+      (question.criteria || []).forEach((criterion) => {
+        const row = document.createElement("div");
+        row.innerHTML = `<span><b></b><small></small></span><strong>${formatMark(criterion.marks_awarded)} / ${formatMark(criterion.marks_available)}</strong>`;
+        mathText(row.querySelector("b"), criterion.criterion);
+        mathText(row.querySelector("small"), criterion.expectation);
+        rubric.append(row);
+      });
+      card.append(rubric);
+      const improve = document.createElement("p");
+      improve.className = "marking-improvement";
+      mathText(improve, question.improvement_summary);
+      card.append(improve);
+      const full = document.createElement("details");
+      full.className = "full-marks-answer";
+      const summary = document.createElement("summary");
+      summary.textContent = "Show the full-marks version";
+      const answer = document.createElement("div");
+      answer.textContent = `$$${question.full_marks_latex}$$`;
+      full.append(summary, answer);
+      card.append(full);
+      math(answer);
+      root.append(card);
+      const questionAnnotations = (question.annotations || []).map(
+        (mark, annotationIndex) =>
+          addMarkAnnotation(mark, scope, questionIndex, annotationIndex),
+      );
+      annotationElements.push(...questionAnnotations);
+      heading.onclick = () =>
+        questionAnnotations[0]?.scrollIntoView({
+          block: "center",
+          behavior: "smooth",
+        });
+    });
+    const confidence = document.createElement("p");
+    confidence.className = "marking-confidence";
+    mathText(confidence, data.confidence_note);
+    root.append(confidence);
+    const regrade = document.createElement("button");
+    regrade.type = "button";
+    regrade.className = "button marking-regrade";
+    regrade.textContent = "Regrade my revision";
+    regrade.onclick = () => markSubmission(data.total_awarded);
+    root.append(regrade);
+    $("getHint").hidden = true;
+    $("startWalkthrough").hidden = true;
+    markingState = data;
+  }
+  async function markSubmission(previousTotal = null) {
+    finishDrawing();
+    if (!$("textEditor").hidden) commitText();
+    if (!page().items.length) return notify("Add a completed solution first.");
+    cancelRequest();
+    requestController = new AbortController();
+    const scope = selection ? { ...selection } : null;
+    const output = document.createElement("canvas");
+    output.width = Math.ceil(scope?.w || WIDTH);
+    output.height = Math.ceil(scope?.h || HEIGHT);
+    renderPage(output, page(), null, scope);
+    openPanel();
+    setBusy(true);
+    $("feedbackContent").innerHTML =
+      '<div class="feedback-status"><span class="loading-dot"></span>Marking like a TA</div><p class="feedback-summary">Building a separate rubric for each question and tracing where every mark was earned or lost…</p>';
+    try {
+      const data = await api("/marking", {
+        image_data: output.toDataURL("image/png").split(",")[1],
+        action_type: "check_logic",
+        is_selection: !!scope,
+      });
+      renderMarking(data, scope, previousTotal);
+    } catch (error) {
+      feedbackError(error.message || "Couldn’t mark this submission.");
+    } finally {
+      setBusy(false);
+    }
   }
   async function recheckIssue({
     annotation,
@@ -1393,13 +1914,12 @@
           remaining?.correction_message ||
           data.status_message ||
           "This step still needs another look.";
-        message.textContent = nextMessage;
-        noteMessage.textContent = nextMessage;
+        mathText(message, nextMessage);
+        mathText(noteMessage, nextMessage);
         item.classList.remove("recheck-needed");
         void item.offsetWidth;
         item.classList.add("recheck-needed");
         button.textContent = "Recheck again";
-        math(noteMessage);
       }
     } catch (error) {
       notify(error.message || "Couldn’t recheck this step.");
@@ -1423,12 +1943,15 @@
       targetPage = page(),
       scope = selection ? { ...selection } : null;
     openPanel();
+    $("getHint").hidden = false;
+    $("startWalkthrough").hidden = true;
     setBusy(true);
     $("feedbackContent").innerHTML =
       action === "get_hint"
         ? '<div class="feedback-status"><span class="loading-dot"></span>Finding a gentle nudge</div><p class="feedback-summary">Looking for the smallest idea that can help you move forward…</p>'
         : '<div class="feedback-status"><span class="loading-dot"></span>Taking a closer look</div><p class="feedback-summary">Checking your reasoning, one step at a time…</p>';
     clearFeedbackPins();
+    clearWalkthrough();
     const output = document.createElement("canvas");
     output.width = Math.ceil(scope?.w || WIDTH);
     output.height = Math.ceil(scope?.h || HEIGHT);
@@ -1460,11 +1983,32 @@
       root.append(status);
       const summary = document.createElement("p");
       summary.className = "feedback-summary";
-      summary.textContent =
+      mathText(
+        summary,
         action === "get_hint"
           ? data.faint_hint || data.status_message
-          : data.status_message;
+          : data.status_message,
+      );
       root.append(summary);
+      if (action === "get_hint") $("startWalkthrough").hidden = false;
+      if (action === "check_logic" && (data.correct_steps || []).length) {
+        const strengths = document.createElement("section");
+        strengths.className = "feedback-strengths";
+        const heading = document.createElement("h4");
+        heading.innerHTML = `${icon("checkCircle")}<span>What you did well</span>`;
+        strengths.append(heading);
+        data.correct_steps.forEach((step) => {
+          const item = document.createElement("div");
+          item.className = "feedback-strength";
+          const label = document.createElement("strong");
+          mathText(label, step.step_label || "Correct step");
+          const explanation = document.createElement("p");
+          mathText(explanation, step.explanation);
+          item.append(label, explanation);
+          strengths.append(item);
+        });
+        root.append(strengths);
+      }
       if (action === "get_hint") {
         const normalizeHintLocation = (value, fallback) => {
           const number = Number(value);
@@ -1484,7 +2028,7 @@
         const roomRight = viewportRect.right - anchorScreenX;
         const roomLeft = anchorScreenX - viewportRect.left;
         const annotationBoost = zoom < 0.55 ? 1.24 : zoom < 0.8 ? 1.14 : 1;
-        const annotationFootprint = 332 * annotationBoost + 16;
+        const annotationFootprint = 382 * annotationBoost + 16;
         const placement =
           roomRight >= annotationFootprint
             ? ""
@@ -1509,7 +2053,7 @@
         noteLabel.textContent = "Something to think about";
         const noteMessage = document.createElement("span");
         noteMessage.className = "error-note-message";
-        noteMessage.textContent = data.faint_hint || data.status_message;
+        mathText(noteMessage, data.faint_hint || data.status_message);
         const closeAnnotation = document.createElement("button");
         closeAnnotation.className = "error-note-close";
         closeAnnotation.type = "button";
@@ -1537,7 +2081,6 @@
         closeAnnotation.onclick = dismissHint;
         annotation.append(pin, note);
         $("errorPins").append(annotation);
-        math(noteMessage);
         placeAnnotationWithoutOverlap(annotation);
       }
       if (action === "check_logic") {
@@ -1547,9 +2090,12 @@
           item.id = "feedback-error-" + index;
           const title = document.createElement("div");
           title.className = "error-label";
-          title.textContent = `${index + 1}. ${err.problem_label || "Review this step"}`;
+          mathText(
+            title,
+            `${index + 1}. ${err.problem_label || "Review this step"}`,
+          );
           const message = document.createElement("p");
-          message.textContent = err.correction_message;
+          mathText(message, err.correction_message);
           const recheckButton = document.createElement("button");
           recheckButton.type = "button";
           recheckButton.className = "recheck-issue";
@@ -1576,7 +2122,7 @@
           const roomRight = viewportRect.right - anchorScreenX;
           const roomLeft = anchorScreenX - viewportRect.left;
           const annotationBoost = zoom < 0.55 ? 1.24 : zoom < 0.8 ? 1.14 : 1;
-          const annotationFootprint = 332 * annotationBoost + 16;
+          const annotationFootprint = 382 * annotationBoost + 16;
           const placement =
             roomRight >= annotationFootprint
               ? ""
@@ -1605,10 +2151,13 @@
           );
           const noteLabel = document.createElement("span");
           noteLabel.className = "error-note-label";
-          noteLabel.textContent = `${index + 1}. ${err.problem_label || "Review this step"}`;
+          mathText(
+            noteLabel,
+            `${index + 1}. ${err.problem_label || "Review this step"}`,
+          );
           const noteMessage = document.createElement("span");
           noteMessage.className = "error-note-message";
-          noteMessage.textContent = err.correction_message;
+          mathText(noteMessage, err.correction_message);
           const closeAnnotation = document.createElement("button");
           closeAnnotation.className = "error-note-close";
           closeAnnotation.type = "button";
@@ -1658,7 +2207,6 @@
             });
           annotation.append(pin, note);
           $("errorPins").append(annotation);
-          math(noteMessage);
           placeAnnotationWithoutOverlap(annotation);
         });
         targetBook.history = targetBook.history || [];
@@ -1687,7 +2235,9 @@
     }
   }
   $("checkWork").onclick = () => callTutor("check_logic");
+  $("markWork").onclick = () => markSubmission();
   $("getHint").onclick = () => callTutor("get_hint");
+  $("startWalkthrough").onclick = startGuidedWalkthrough;
   function renderProgress() {
     if (!book()) return;
     const history = book().history || [],
@@ -1717,7 +2267,7 @@
       summaryCard.className = "progress-reflection";
       summaryCard.innerHTML = `<span>${icon("spark")}</span><div><small>A NOTE FROM YOUR TUTOR</small></div>`;
       const summary = document.createElement("p");
-      summary.textContent = data.overall_summary;
+      mathText(summary, data.overall_summary);
       summaryCard.lastElementChild.append(summary);
       section.append(summaryCard);
       for (const [key, title, subtitle, tone] of [
@@ -1756,7 +2306,7 @@
         const ul = document.createElement("ul");
         for (const value of data[key] || []) {
           const li = document.createElement("li");
-          li.textContent = value;
+          mathText(li, value);
           ul.append(li);
         }
         group.append(ul);
@@ -1857,4 +2407,10 @@
   renderLibrary();
   renderTabs();
   chooseTool("pen", false, false);
+  window.StriveCloud?.configure({
+    getState: () => ({ books, tabs }),
+    applyState: applyCloudState,
+    setStatus: updateCloudStatus,
+    notify,
+  });
 })();

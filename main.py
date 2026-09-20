@@ -43,6 +43,23 @@ def get_api_key() -> str:
     raise RuntimeError("GEMINI_API_KEY not found in environment or .env file.")
 
 
+def get_public_setting(name: str) -> str:
+    value = os.environ.get(name, "").strip()
+    if value:
+        return value
+    env_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+    if os.path.exists(env_file):
+        try:
+            with open(env_file, "r", encoding="utf-8") as file:
+                for line in file:
+                    key, separator, raw_value = line.strip().partition("=")
+                    if separator and key == name:
+                        return raw_value.strip().strip('"').strip("'")
+        except OSError:
+            pass
+    return ""
+
+
 # ──────────────────────────────────────────────────────────
 # Pydantic Models
 # ──────────────────────────────────────────────────────────
@@ -55,6 +72,11 @@ class ErrorItem(BaseModel):
     error_location_y: float         # Normalized 0.05 to 0.95 (Y position on image)
 
 
+class CorrectStep(BaseModel):
+    step_label: str = "Correct step"
+    explanation: str  # Specific description of what the student did correctly and why it is valid
+
+
 class FrontendRequest(BaseModel):
     image_data: str
     action_type: Literal["check_logic", "get_hint"]
@@ -65,11 +87,63 @@ class FrontendRequest(BaseModel):
 class MathTutorResponse(BaseModel):
     is_correct_so_far: bool
     status_message: str
+    correct_steps: List[CorrectStep] = []
     errors: List[ErrorItem] = []  # List of EVERY error found on the canvas (empty if completely correct)
     faint_hint: Optional[str] = None
     hint_location_x: Optional[float] = None  # Normalized position of the work the hint addresses
     hint_location_y: Optional[float] = None
     current_latex: str
+
+
+class WalkthroughStep(BaseModel):
+    latex: str
+    goal: str
+    reason: str
+    check: str
+    placement_x: float
+    placement_y: float
+
+
+class WalkthroughResponse(BaseModel):
+    problem_summary: str
+    steps: List[WalkthroughStep]
+
+
+class MarkingCriterion(BaseModel):
+    criterion: str
+    expectation: str
+    marks_available: float
+    marks_awarded: float
+
+
+class MarkAnnotation(BaseModel):
+    label: str
+    message: str
+    marks_delta: float
+    annotation_type: Literal["earned", "lost", "presentation"]
+    location_x: float
+    location_y: float
+
+
+class QuestionMarking(BaseModel):
+    question_label: str
+    question_type: str
+    task_intent: str
+    rubric_basis: str
+    marks_awarded: float
+    marks_available: float
+    criteria: List[MarkingCriterion]
+    annotations: List[MarkAnnotation]
+    improvement_summary: str
+    full_marks_latex: str
+
+
+class MarkingResponse(BaseModel):
+    questions: List[QuestionMarking]
+    total_awarded: float
+    total_available: float
+    overall_feedback: str
+    confidence_note: str
 
 
 # Analytics Diagnostic Models
@@ -108,12 +182,19 @@ SYSTEM_CHECK_LOGIC = (
     "- For Proofs: Check whether definitions are correctly applied, base cases are properly verified, the inductive hypothesis is soundly assumed, and the inductive step/justifications are logically rigorous without fallacies.\n"
     "- If there are MULTIPLE mistakes, add a separate entry into 'errors' for EACH mistake with approximate coordinates (error_location_x, error_location_y from 0.05 to 0.95) and label ('problem_label', e.g. 'Base Case', 'Inductive Step', 'Problem 1').\n"
     "- If all solutions/proof steps are sound so far, set 'is_correct_so_far' to true and 'errors' to [].\n\n"
+    "CORRECT REASONING RECOGNITION:\n"
+    "- In 'correct_steps', identify every mathematically important step the student completed correctly, even when a later or earlier step is wrong.\n"
+    "- Be specific about WHY each recognized step is valid: correct theorem choice, setup, substitution, algebraic transformation, base case, hypothesis, justification, or verification.\n"
+    "- If the entire solution is correct, provide a concise step-by-step breakdown of the important reasoning rather than only saying it is correct.\n"
+    "- Do not praise superficial details such as merely copying the question. Do not invent a correct step when none is demonstrated.\n"
+    "- Recognizing a correct step must not reveal how to repair a different incorrect step or disclose a missing final answer.\n\n"
     "CRITICAL RULE — STRICTLY NO SPOILERS / NEVER GIVE THE ANSWER:\n"
     "- NEVER write out the solution, complete the proof step, or state the correct numerical/algebraic result!\n"
     "- ONLY pinpoint the mistake and identify WHAT logic/operation to check (e.g., 'Check the inductive step assumption when multiplying by $k+1$', 'Review the sign when distributing').\n"
     "- The student must do all reasoning and corrections themselves.\n\n"
     "FORMATTING REQUIREMENT:\n"
     "- ALWAYS format all mathematical variables, formulas, expressions, sets, and equations using LaTeX notation enclosed in $...$ (inline) or $$...$$ (display).\n\n"
+    "- NEVER emit raw math such as u = x^2 + 4, dx, x^n, or + C in any prose field. Write them as $u=x^2+4$, $dx$, $x^n$, and $+C$. This applies to status_message, correct_steps, errors, labels, and every other visible string.\n\n"
     "SUMMARY:\n"
     "- In 'status_message', provide a clear summary of all evaluated problems/proofs.\n"
     "- In 'current_latex', provide a clean, complete LaTeX transcription of the math and proofs.\n"
@@ -134,15 +215,54 @@ SYSTEM_GET_HINT = (
     "- Start faintly. Prefer recalling a concept or asking what relationship applies before naming a procedure.\n\n"
     "FORMATTING REQUIREMENT:\n"
     "- ALWAYS format all mathematical terms, formulas, rules, and expressions using LaTeX notation enclosed in $...$ (inline) or $$...$$ (display).\n\n"
+    "- NEVER emit bare variables, powers, differentials, equations, or set notation in any prose field. Every mathematical fragment must be inside LaTeX delimiters.\n\n"
     "YOUR TASKS:\n"
     "1. Read their work carefully.\n"
     "2. Infer where they are currently stuck and identify the conceptual insight needed for their NEXT step.\n"
     "3. In 'faint_hint', provide the short, non-spoiling Socratic nudge.\n"
     "4. In 'hint_location_x' and 'hint_location_y', provide the approximate normalized coordinates (0.05 to 0.95) of the exact work or problem the hint addresses.\n"
-    "5. Set 'is_correct_so_far' to true and 'errors' to [] because hint mode does not grade the attempt.\n"
+    "5. Set 'is_correct_so_far' to true, 'errors' to [], and 'correct_steps' to [] because hint mode does not grade the attempt.\n"
     "6. In 'status_message', briefly and neutrally say which part of the attempt the hint is addressing without judging correctness.\n"
     "7. In 'current_latex', provide a clean LaTeX transcription.\n"
     "Return JSON conforming strictly to the response schema."
+)
+
+SYSTEM_WALKTHROUGH = (
+    "You are a patient university mathematics instructor creating a guided worked example after a student explicitly requested a full walkthrough.\n"
+    "The student has already attempted the problem and used hints but remains stuck. Unlike hint mode, you may now complete the solution.\n\n"
+    "TEACHING STRUCTURE:\n"
+    "- Continue naturally from the student's visible work, correcting an invalid direction when necessary.\n"
+    "- Break the remaining solution into 2 to 6 meaningful steps. Never collapse the reasoning into one jump.\n"
+    "- For every step provide: 'latex' (the exact line to write), 'goal' (what the step is trying to accomplish), 'reason' (the rule or theorem that justifies it), and 'check' (a quick way the student can verify it).\n"
+    "- The final step may contain the final answer because the student explicitly requested the walkthrough.\n"
+    "- Keep explanations concise and instructional. Explain decisions, not merely algebraic narration.\n"
+    "- Use LaTeX enclosed in $...$ or $$...$$ in every explanatory field when math appears. The 'latex' field itself should contain valid LaTeX without dollar delimiters.\n"
+    "- Never place raw variables, equations, powers, or differentials in goal, reason, check, or problem_summary. Every mathematical fragment in those prose fields requires delimiters.\n"
+    "- Give each step approximate normalized placement coordinates from 0.05 to 0.95. Place the first step near open space following the student's last visible line, then arrange later steps downward with separation.\n"
+    "Return JSON conforming strictly to WalkthroughResponse."
+)
+
+SYSTEM_MARKING = (
+    "You are an experienced university mathematics professor and teaching assistant marking a completed handwritten submission.\n"
+    "Create a separate marking scheme for EACH visible question before awarding marks. Never apply one generic rubric to all questions.\n\n"
+    "QUESTION-SPECIFIC RUBRICS:\n"
+    "- Classify every question by its actual task: proof, algebra, calculus, linear algebra, applied modelling, explanation, verification, diagram, or another precise category.\n"
+    "- Read command verbs such as prove, calculate, explain, derive, verify, interpret, sketch, compare, or use induction. They determine the required evidence.\n"
+    "- If marks or a rubric are visible, follow them exactly. Otherwise create a transparent estimated rubric whose criteria sum to marks_available and say so in rubric_basis.\n"
+    "- Proofs must prioritize logical structure, definitions, justified implications, required cases, and conclusion. Calculations must prioritize method, valid transformations, execution, checks, and interpretation. Applied work must include modelling, units, and contextual conclusions when relevant.\n"
+    "- Accept alternative valid methods. Award method and follow-through marks when later reasoning correctly follows an earlier arithmetic error. Do not deduct repeatedly for one originating error.\n"
+    "- Grade each subpart independently while respecting dependencies between parts.\n\n"
+    "LINE-LEVEL MARKUP:\n"
+    "- Return annotations for the exact lines that earn marks, lose marks, or weaken mathematical presentation.\n"
+    "- marks_delta is positive for earned marks and negative for lost marks. Use annotation_type presentation for notation, rigor, clarity, units, or form.\n"
+    "- location_x and location_y are normalized coordinates from 0.05 to 0.95 on the supplied image.\n"
+    "- Explain what the marker expected and the smallest change that would earn the mark.\n\n"
+    "FULL-MARKS VERSION:\n"
+    "- For every question provide full_marks_latex: a complete, submission-ready answer that would earn full credit under that question's rubric. Preserve the student's valid approach where possible.\n"
+    "- Include the necessary reasoning, definitions, intermediate steps, notation, units, and conclusion. Unlike Check Work, this explicit marking mode may show the full answer.\n"
+    "- All mathematical content in prose must use $...$ or $$...$$. full_marks_latex must be valid LaTeX without outer dollar delimiters.\n"
+    "- This is absolute: never output raw forms such as u = x^2 + 4, du, dx, x^n, or + C in task_intent, rubric_basis, criteria, annotations, summaries, or confidence text. Delimit every mathematical fragment.\n"
+    "Return JSON conforming strictly to MarkingResponse."
 )
 
 SYSTEM_ANALYTICS = (
@@ -169,6 +289,7 @@ SYSTEM_ANALYTICS = (
     "   - NEVER write raw LaTeX commands in plain prose outside dollar signs (e.g. never write extstyle or rac{d}{dx} in plain text).\n"
     "   - EVERY math symbol, formula, derivative, integral, and fraction MUST be cleanly enclosed inside $...$ dollar delimiters (e.g. $\\frac{d}{dx}[x^2] = 2x$, $\\int x^n dx = \\frac{x^{n+1}}{n+1} + C$).\n"
     "   - In JSON strings, properly escape backslashes for standard LaTeX commands (e.g. $\\\\frac{...}{...}$, $\\\\int$, $\\\\sin(x)$, $\\\\lim$).\n"
+    "   - NEVER return bare mathematical variables or expressions in any analytics field. Delimit every mathematical fragment, without exception.\n"
     "Return JSON conforming strictly to the AnalyticsResponse schema."
 )
 
@@ -234,6 +355,18 @@ async def serve_frontend():
     """Serve index.html from the same directory as main.py."""
     index_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "index.html")
     return FileResponse(index_path, media_type="text/html")
+
+
+@app.get("/config")
+async def public_config():
+    """Expose only browser-safe Supabase project configuration."""
+    url = get_public_setting("SUPABASE_URL")
+    publishable_key = get_public_setting("SUPABASE_PUBLISHABLE_KEY") or get_public_setting("SUPABASE_ANON_KEY")
+    return {
+        "supabase_url": url,
+        "supabase_publishable_key": publishable_key,
+        "supabase_enabled": bool(url and publishable_key),
+    }
 
 
 # ──────────────────────────────────────────────────────────
@@ -323,6 +456,87 @@ async def tutor(request: FrontendRequest):
     raise HTTPException(
         status_code=500,
         detail=f"Gemini API error across all models: {str(last_error)}",
+    )
+
+
+@app.post("/walkthrough", response_model=WalkthroughResponse)
+async def walkthrough(request: FrontendRequest):
+    """Generate a progressive, explicitly requested worked solution."""
+    try:
+        clean_b64 = request.image_data.split("base64,")[-1]
+        image_bytes = base64.b64decode(clean_b64)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid base64 image data: {exc}")
+
+    prompt_text = (
+        "Create a guided walkthrough for the selected problem region. Continue from what the student has written."
+        if request.is_selection
+        else "Identify the incomplete or stuck problem in the work and create a guided walkthrough that continues from the student's last meaningful step."
+    )
+    last_error = None
+    client = get_client()
+    for model_name in ACTIVE_MODELS:
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=[
+                    genai.types.Part.from_bytes(data=image_bytes, mime_type="image/png"),
+                    prompt_text,
+                ],
+                config=genai.types.GenerateContentConfig(
+                    system_instruction=SYSTEM_WALKTHROUGH,
+                    temperature=0.2,
+                    response_mime_type="application/json",
+                    response_schema=WalkthroughResponse,
+                ),
+            )
+            return WalkthroughResponse(**clean_and_parse_json(response.text or ""))
+        except Exception as exc:
+            last_error = exc
+            print(f"[WALKTHROUGH WARN] {model_name}: {exc}", flush=True)
+    raise HTTPException(
+        status_code=500,
+        detail=f"Walkthrough generation failed across all models: {str(last_error)}",
+    )
+
+
+@app.post("/marking", response_model=MarkingResponse)
+async def mark_submission(request: FrontendRequest):
+    """Mark each visible question with a task-specific rubric and anchored feedback."""
+    try:
+        image_bytes = base64.b64decode(request.image_data.split("base64,")[-1])
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid base64 image data: {exc}")
+
+    prompt_text = (
+        "Mark the selected question or subpart. Infer its task-specific rubric, award partial credit, and provide a full-marks version."
+        if request.is_selection
+        else "Detect and separately mark every complete question visible on this page. Give each question its own task-specific rubric and full-marks version."
+    )
+    last_error = None
+    client = get_client()
+    for model_name in ACTIVE_MODELS:
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=[
+                    genai.types.Part.from_bytes(data=image_bytes, mime_type="image/png"),
+                    prompt_text,
+                ],
+                config=genai.types.GenerateContentConfig(
+                    system_instruction=SYSTEM_MARKING,
+                    temperature=0.15,
+                    response_mime_type="application/json",
+                    response_schema=MarkingResponse,
+                ),
+            )
+            return MarkingResponse(**clean_and_parse_json(response.text or ""))
+        except Exception as exc:
+            last_error = exc
+            print(f"[MARKING WARN] {model_name}: {exc}", flush=True)
+    raise HTTPException(
+        status_code=500,
+        detail=f"Marking failed across all models: {str(last_error)}",
     )
 
 

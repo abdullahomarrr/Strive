@@ -179,6 +179,15 @@
     math(panel.querySelector("#fa-all"));
   }
   function math(el) {
+    if (typeof window.StriveNormalizeMath === "function") {
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      const nodes = [];
+      while (walker.nextNode()) nodes.push(walker.currentNode);
+      nodes.forEach((node) => {
+        if (!node.parentElement?.closest(".katex"))
+          node.nodeValue = window.StriveNormalizeMath(node.nodeValue);
+      });
+    }
     if (typeof window.renderMathInElement === "function")
       window.renderMathInElement(el, {
         delimiters: [
@@ -225,7 +234,7 @@
       .querySelectorAll(".fa-card,.fa-mastery-card")
       .forEach((e) => e.classList.add("fa-loading"));
     try {
-      const res = await fetch("/analytics", {
+      const res = await fetch(window.striveApiUrl("/analytics"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         signal: controller.signal,

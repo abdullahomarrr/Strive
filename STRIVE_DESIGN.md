@@ -75,6 +75,8 @@ The system favors clean sans-serif type with an editorial touch:
 
 Headings can be expressive, but controls and feedback must be immediately readable. Mathematical content must render through KaTeX. All model-produced expressions should use `$...$` or `$$...$$` delimiters.
 
+This requirement applies to every AI surface without exception: hints, check-work summaries, correct-step recognition, inline annotations, guided walkthrough explanations, TA rubrics, mark comments, full-marks answers, regrade feedback, and progress analytics. The client also normalizes common bare equations, powers, and differentials before KaTeX rendering as a fallback when a model misses delimiters.
+
 ### Shape, border, and shadow
 
 Surfaces use moderate radii, thin warm-gray borders, and soft diffuse shadows. The toolbar and feedback notes should feel placed above the desk, not illuminated from within it. Avoid stacking many rounded containers inside one another.
@@ -120,6 +122,12 @@ On narrower screens, secondary chrome compresses before the paper becomes unusab
 
 There are two separate tutor modes. Do not combine them into a single generic assistant action.
 
+### TA Markup
+
+TA Markup is a separate, explicit submission-review mode. It first detects each question and its task type, then creates a different transparent rubric for every question based on command verbs, visible mark allocations, expected evidence, and mathematical domain. Proofs emphasize structure and justification; calculations emphasize method and execution; applied questions include modelling, units, and interpretation. It accepts alternative valid methods, preserves partial and follow-through credit, and never deducts repeatedly for one originating error.
+
+The notebook shows anchored `+ / −` mark annotations on exact lines. The panel shows each question's score, rubric basis, criterion-level allocation, improvement summary, and a complete full-marks version. Scores remain estimates unless an instructor rubric is visible. **Regrade my revision** compares the new total with the previous attempt and reports marks recovered.
+
 ### Get a hint
 
 Use when the student is stuck and has not submitted a finished solution.
@@ -138,7 +146,8 @@ Example tone: “Which relationship connects the changing upper limit to the int
 Use when the student wants an evaluation of completed or substantially attempted work.
 
 - Inspect every distinct problem and proof step on the current page or selection.
-- Confirm sound work or identify each separate issue.
+- Confirm sound work and identify each separate issue. Report important correct steps even when another part of the solution is wrong.
+- For fully correct work, explain the meaningful sequence of valid steps and why each one works rather than returning a generic success message.
 - Explain what operation, definition, sign, assumption, or justification to reconsider.
 - Never provide the corrected line, completed proof, or final answer.
 - Return approximate page coordinates for every issue so the client can place feedback beside the relevant work.
@@ -164,6 +173,10 @@ When a student requests a hint for a selected region, first ask what kind of hel
 
 Only completed `Check work` calls become practice records. Hints must not affect accuracy or mastery. Analysis should ground strengths, weak points, pitfalls, and advice in actual recorded attempts. Low or mixed accuracy must produce a realistic mastery estimate.
 
+### Guided walkthrough
+
+After a student requests a hint, offer **Walk me through it** as an explicit last-resort escalation. A walkthrough may reveal the solution because the student deliberately requested it, but it must reveal one meaningful step at a time. Each step includes the written mathematical line plus its Goal, Why, and Check. Render the lines on a removable teal Tutor Ink layer so they remain visibly separate from student-authored work. Students can hide the layer, continue progressively, or clear it and retry. Guided sessions are stored separately and do not count as independent correct attempts in Progress.
+
 ## Changing the LLM
 
 The model integration is isolated in `main.py`. Preserve the API contracts even if the provider or model changes:
@@ -186,12 +199,24 @@ Model names currently live in `ACTIVE_MODELS`. The client wrapper and response p
 
 ## Data and privacy model
 
-- Notebook content is stored in browser local storage under `folio_notebooks_v1`.
+- Notebook content is stored in browser local storage under `folio_notebooks_v1` first, so writing remains available offline.
 - That legacy key is intentionally retained after the Strive rename so existing users do not lose notebooks.
-- There is no cloud sync or account system.
-- Clearing site data removes notebooks.
+- When Supabase is configured, students can create an email/password account. Signed-in notebooks sync to owner-only rows protected by Postgres RLS.
+- Guest mode and new accounts both begin with zero notebooks. Students always create their own notebooks.
+- Guest notebooks remain available only for the current local calendar day and are cleared on the next day's visit. They stay separate from account notebooks and are never imported automatically during signup.
+- Per-user device caches prevent one account's workspace from being shown to another account after switching users.
+- Sync merges individual notebooks by their client update timestamp, queues edits while offline, and listens for authenticated realtime changes. The local copy remains the immediate source of truth for writing responsiveness.
+- Signing out restores the anonymous device workspace. Clearing site data removes local copies, while cloud notebooks remain recoverable after sign-in.
 - AI features send a rendered image of the current page or selection to the configured model provider.
 - Practice history is stored with its notebook and is used for progress analysis.
+
+## First-run onboarding
+
+Onboarding appears after a newly created account reaches its first authenticated session. It is a short, four-part introduction to Strive's core promise: think on paper, use familiar notebook tools, ask for guidance without surrendering the work, and shape the workspace around the student's current subject and goal.
+
+The experience should feel like opening a well-made notebook. It uses warm paper, restrained navy and teal, generous space, and small product demonstrations rather than generic feature illustrations. Motion explains the product: ink draws onto a page, tools settle into place, and tutor feedback arrives beside the relevant line. Transitions should remain calm and respect `prefers-reduced-motion`.
+
+Completion and optional subject/goal choices are stored in Supabase auth metadata. Only accounts explicitly tagged as newly created are eligible, so existing students are never interrupted. The flow may be skipped, and skipping counts as completion. Onboarding must remain responsive, keyboard navigable, and readable on narrow screens.
 
 Any future sync feature should make ownership, upload state, failure state, and privacy clear. Never silently change local-first behavior.
 
@@ -205,6 +230,7 @@ Any future sync feature should make ownership, upload state, failure state, and 
 | `static/paper-picker.js` / `.css` | Paper selection experience                                                                                |
 | `static/selects.js`               | Custom select behavior                                                                                    |
 | `static/analytics.js` / `.css`    | Progress dialog, history and reflective analytics presentation                                            |
+| `static/onboarding.js` / `.css`   | Account-scoped first-run introduction, animation and preference capture                                   |
 | `main.py`                         | FastAPI routes, model client, tutor prompts, analytics prompt and response schemas                        |
 | `tests/test_workspace.py`         | Browser shell and mocked model/API behavior checks                                                        |
 
