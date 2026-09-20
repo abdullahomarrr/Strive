@@ -26,6 +26,17 @@ revoke all on table public.workspace_preferences from anon, authenticated;
 grant select, insert, update, delete on table public.notebooks to authenticated;
 grant select, insert, update, delete on table public.workspace_preferences to authenticated;
 
+-- Policies do not support `create policy if not exists`. Dropping each named
+-- policy first makes this migration safe to rerun after a partial execution.
+drop policy if exists "Users select their notebooks" on public.notebooks;
+drop policy if exists "Users insert their notebooks" on public.notebooks;
+drop policy if exists "Users update their notebooks" on public.notebooks;
+drop policy if exists "Users delete their notebooks" on public.notebooks;
+drop policy if exists "Users select their workspace preferences" on public.workspace_preferences;
+drop policy if exists "Users insert their workspace preferences" on public.workspace_preferences;
+drop policy if exists "Users update their workspace preferences" on public.workspace_preferences;
+drop policy if exists "Users delete their workspace preferences" on public.workspace_preferences;
+
 create policy "Users select their notebooks"
 on public.notebooks for select to authenticated
 using ((select auth.uid()) is not null and (select auth.uid()) = user_id);
