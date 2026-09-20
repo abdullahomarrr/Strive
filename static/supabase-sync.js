@@ -14,6 +14,7 @@
   let syncing = false;
   let syncAgain = false;
   let authMode = "signin";
+  const desktopRequiresAccount = () => !!window.StriveRuntime?.desktop;
   const localDay = () => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
@@ -240,6 +241,20 @@
     if (session?.user)
       ui.accountEmail.textContent = session.user.email || "Signed in";
   }
+  function showDesktopAuthGate(message = "") {
+    if (!desktopRequiresAccount()) return;
+    document.documentElement.classList.add("desktop-auth-pending");
+    const ui = elements();
+    setAuthMode("signin");
+    if (message) ui.message.textContent = message;
+    if (!ui.dialog.open) ui.dialog.showModal();
+  }
+  function releaseDesktopAuthGate() {
+    if (!desktopRequiresAccount()) return;
+    document.documentElement.classList.remove("desktop-auth-pending");
+    const dialog = elements().dialog;
+    if (dialog?.open) dialog.close();
+  }
   function setAuthMode(mode) {
     authMode = mode;
     const ui = elements();
@@ -281,6 +296,7 @@
       callbacks.applyState(anonymous || { books: [], tabs: [] });
       renderAccount();
       setStatus("local");
+      showDesktopAuthGate();
       return;
     }
     session = nextSession;
@@ -296,6 +312,7 @@
     }
     localStorage.setItem(ACTIVE_USER, userId);
     renderAccount();
+    releaseDesktopAuthGate();
     subscribe(userId);
     if (event !== "TOKEN_REFRESHED") await syncNow(localState);
     const metadata = session.user.user_metadata || {};
@@ -327,7 +344,12 @@
       renderAccount();
       ui.dialog.showModal();
     };
-    document.getElementById("closeAuth").onclick = () => ui.dialog.close();
+    document.getElementById("closeAuth").onclick = () => {
+      if (!desktopRequiresAccount() || session?.user) ui.dialog.close();
+    };
+    ui.dialog.addEventListener("cancel", (event) => {
+      if (desktopRequiresAccount() && !session?.user) event.preventDefault();
+    });
     document.querySelectorAll("[data-auth-mode]").forEach((button) => {
       button.onclick = () => setAuthMode(button.dataset.authMode);
     });
@@ -384,7 +406,8 @@
     document.getElementById("syncNow").onclick = () => syncNow();
     document.getElementById("signOut").onclick = async () => {
       await client.auth.signOut();
-      ui.dialog.close();
+      if (desktopRequiresAccount()) showDesktopAuthGate();
+      else ui.dialog.close();
     };
   }
   async function configure(nextCallbacks) {
@@ -399,8 +422,14 @@
       const config = await fetch(window.striveApiUrl("/config")).then(
         (response) => response.json(),
       );
-      if (!config.supabase_enabled || !window.supabase)
+      if (!config.supabase_enabled || !window.supabase) {
+        if (desktopRequiresAccount()) {
+          elements().dialog.showModal();
+          elements().message.textContent =
+            "Account services are temporarily unavailable. Check your connection and reopen Strive.";
+        }
         return setStatus("local");
+      }
       client = window.supabase.createClient(
         config.supabase_url,
         config.supabase_publishable_key,
@@ -425,6 +454,12 @@
       await handleSession(sessionData.session, "INITIAL_SESSION");
     } catch (error) {
       console.error("Supabase initialization failed", error);
+      if (desktopRequiresAccount()) {
+        const ui = elements();
+        if (!ui.dialog.open) ui.dialog.showModal();
+        ui.message.textContent =
+          "Strive could not reach account services. Check your connection and reopen the app.";
+      }
       setStatus("error", error.message);
     }
   }

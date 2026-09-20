@@ -1,6 +1,7 @@
 "use strict";
 (() => {
   const desktop = !!window.__TAURI_INTERNALS__;
+  if (desktop) document.documentElement.classList.add("desktop-auth-pending");
   const configured = String(window.STRIVE_DESKTOP_API_BASE || "").replace(
     /\/$/,
     "",

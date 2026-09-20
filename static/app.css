@@ -73,6 +73,20 @@ i {
 [hidden] {
   display: none !important;
 }
+
+/* The installed app requires an account. Keep the workspace out of view until
+   Supabase has restored a valid desktop session. */
+.desktop-auth-pending #app {
+  visibility: hidden;
+}
+
+.desktop-auth-pending body {
+  background: #edf1ec;
+}
+
+.desktop-auth-pending .auth-dialog #closeAuth {
+  display: none;
+}
 .tabbar {
   view-transition-name: folio-navigation;
 }
