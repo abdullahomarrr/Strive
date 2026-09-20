@@ -45,7 +45,7 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEFGQzNBNzY3NjZBQTgwOUEKUldTYWdLcG1aNmZEcndwZm5HaWk2eGVCblBxLzcxcUc5SHNzM3N1RGl5Nm1VcmpqUzhRVXloSmoK",
       "endpoints": [
-        "https://github.com/RayanAsad109/emberhacks/releases/latest/download/latest.json"
+        "https://github.com/abdullahomarrr/Strive/releases/latest/download/latest.json"
       ],
       "windows": {
         "installMode": "passive"
