@@ -446,6 +446,15 @@
   }
   async function configure(nextCallbacks) {
     callbacks = nextCallbacks;
+    renderAccount();
+    const accountUi = elements();
+    accountUi.button.onclick = () => {
+      setAuthMode("signin");
+      accountUi.dialog.showModal();
+      if (!client)
+        accountUi.message.textContent =
+          "Account services are loading. Please try again in a moment.";
+    };
     if (!localStorage.getItem(ACTIVE_USER)) {
       if (localStorage.getItem(ANONYMOUS_CACHE_DAY) !== localDay())
         localStorage.removeItem(ANONYMOUS_CACHE);
@@ -457,10 +466,10 @@
         (response) => response.json(),
       );
       if (!config.supabase_enabled || !window.supabase) {
+        accountUi.message.textContent =
+          "Account services are temporarily unavailable. Please try again shortly.";
         if (desktopRequiresAccount()) {
           elements().dialog.showModal();
-          elements().message.textContent =
-            "Account services are temporarily unavailable. Check your connection and reopen Strive.";
         }
         return setStatus("local");
       }
@@ -488,11 +497,11 @@
       await handleSession(sessionData.session, "INITIAL_SESSION");
     } catch (error) {
       console.error("Supabase initialization failed", error);
+      accountUi.message.textContent =
+        "Strive could not reach account services. Check your connection and try again.";
       if (desktopRequiresAccount()) {
         const ui = elements();
         if (!ui.dialog.open) ui.dialog.showModal();
-        ui.message.textContent =
-          "Strive could not reach account services. Check your connection and reopen the app.";
       }
       setStatus("error", error.message);
     }

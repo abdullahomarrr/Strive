@@ -6,9 +6,7 @@
     /\/$/,
     "",
   );
-  const apiBase = desktop
-    ? configured || "http://127.0.0.1:8765"
-    : "";
+  const apiBase = configured || (desktop ? "http://127.0.0.1:8765" : "");
   window.StriveRuntime = { desktop, apiBase };
   window.striveApiUrl = (path) =>
     `${apiBase}${path.startsWith("/") ? path : `/${path}`}`;
