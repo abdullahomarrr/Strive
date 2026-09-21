@@ -76,7 +76,9 @@ i {
 
 /* The installed app requires an account. Keep the workspace out of view until
    Supabase has restored a valid desktop session. */
-.desktop-auth-pending #app {
+.desktop-auth-pending .tabbar,
+.desktop-auth-pending #library,
+.desktop-auth-pending #editor {
   visibility: hidden;
 }
 

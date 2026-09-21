@@ -1,6 +1,6 @@
 [package]
 name = "strive"
-version = "0.1.0"
+version = "0.1.1"
 description = "A calm notebook for mathematical thinking"
 authors = ["Strive"]
 edition = "2021"

@@ -33,6 +33,13 @@ class WorkspaceContractTests(unittest.TestCase):
         self.assertIn('How should your tutor help?', onboarding_js)
         self.assertIn('getLearnerProfile', sync_js)
 
+    def test_desktop_auth_gate_keeps_login_dialog_visible(self):
+        css = self.client.get('/static/app.css').text
+        self.assertNotIn('.desktop-auth-pending #app {', css)
+        self.assertIn('.desktop-auth-pending .tabbar', css)
+        self.assertIn('.desktop-auth-pending #library', css)
+        self.assertIn('.desktop-auth-pending #editor', css)
+
     def test_public_config_exposes_only_browser_safe_supabase_settings(self):
         with patch.dict('os.environ', {'SUPABASE_URL': 'https://example.supabase.co',
                                         'SUPABASE_PUBLISHABLE_KEY': 'sb_publishable_test'}, clear=False):
@@ -42,6 +49,14 @@ class WorkspaceContractTests(unittest.TestCase):
         self.assertEqual(response.json()['supabase_publishable_key'], 'sb_publishable_test')
         self.assertTrue(response.json()['supabase_enabled'])
         self.assertNotIn('service', response.text.lower())
+
+    def test_static_production_client_uses_hosted_api_and_keeps_login_visible(self):
+        index = self.client.get('/').text
+        runtime = self.client.get('/static/runtime.js').text
+        config = self.client.get('/static/desktop-config.js').text
+        self.assertIn('id="accountButton" class="account-button" type="button">', index)
+        self.assertIn('configured ||', runtime)
+        self.assertIn('https://strive-api-ui0n.onrender.com', config)
 
     def test_supabase_migration_enforces_owner_rls(self):
         migration = (main.os.path.join(main.os.path.dirname(main.__file__), 'supabase', 'migrations',
