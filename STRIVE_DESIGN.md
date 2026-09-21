@@ -212,7 +212,7 @@ Model names currently live in `ACTIVE_MODELS`. The client wrapper and response p
 
 ## First-run onboarding
 
-Onboarding is a short learner intake, not a product tour. Four required steps ask for the student's level, current subjects, common sticking points, preferred hint style, and immediate goal. Optional name and course fields add useful context without blocking setup. The layout is deliberately plain and form-led: no decorative product mockups, generic inspirational copy, or skippable slides.
+Onboarding is a short learner intake, not a product tour. After a brief welcome, it asks exactly one question per screen about the student's name, level, current subjects, course, common sticking points, preferred hint style, and immediate goal. Optional name and course fields add useful context without blocking setup. The experience fills the viewport and uses the same navy, paper-grid geometry, restrained teal, typography, and precise controls as the notebook. Progress stays secondary so the current question remains the clear focal point.
 
 The resulting profile is stored in account metadata and accompanies tutor requests so wording, depth, and hint style reflect the learner's choices without weakening mathematical standards. Signed-in users can reopen the intake from **Edit learning profile** in the account dialog.
 
