@@ -3,6 +3,8 @@
   const ANONYMOUS_CACHE = "strive_anonymous_workspace_v1";
   const ANONYMOUS_CACHE_DAY = "strive_anonymous_workspace_day_v1";
   const ACTIVE_USER = "strive_active_sync_user_v1";
+  const onboardingReceiptKey = (userId) =>
+    `strive_onboarding_complete_${userId}`;
   const userCacheKey = (userId) => `strive_user_workspace_${userId}`;
   const pendingDeletesKey = (userId) => `strive_pending_deletes_${userId}`;
   let client = null;
@@ -327,10 +329,19 @@
     subscribe(userId);
     if (event !== "TOKEN_REFRESHED") await syncNow(localState);
     const metadata = session.user.user_metadata || {};
+    const automaticOnboardingEvent =
+      event === "INITIAL_SESSION" || event === "SIGNED_IN";
+    const onboardingAlreadyHandled =
+      localStorage.getItem(onboardingReceiptKey(userId)) === "true";
+    if (metadata.strive_onboarding_complete === true)
+      localStorage.setItem(onboardingReceiptKey(userId), "true");
     if (
+      automaticOnboardingEvent &&
       metadata.strive_new_account === true &&
       metadata.strive_onboarding_complete !== true &&
-      window.StriveOnboarding
+      !onboardingAlreadyHandled &&
+      window.StriveOnboarding &&
+      !window.StriveOnboarding.isActive()
     ) {
       const authDialog = document.getElementById("authDialog");
       if (authDialog?.open) authDialog.close();
@@ -347,6 +358,7 @@
             },
           });
           if (error) throw error;
+          localStorage.setItem(onboardingReceiptKey(userId), "true");
           if (data.user) session = { ...session, user: data.user };
         },
       });
@@ -434,6 +446,7 @@
             },
           });
           if (error) throw error;
+          localStorage.setItem(onboardingReceiptKey(session.user.id), "true");
           if (data.user) session = { ...session, user: data.user };
         },
       });

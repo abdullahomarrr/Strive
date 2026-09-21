@@ -32,6 +32,9 @@ class WorkspaceContractTests(unittest.TestCase):
         self.assertIn('Where do you usually get stuck?', onboarding_js)
         self.assertIn('How should your tutor help?', onboarding_js)
         self.assertIn('getLearnerProfile', sync_js)
+        self.assertIn('automaticOnboardingEvent', sync_js)
+        self.assertIn('onboardingReceiptKey', sync_js)
+        self.assertIn('!window.StriveOnboarding.isActive()', sync_js)
 
     def test_desktop_auth_gate_keeps_login_dialog_visible(self):
         css = self.client.get('/static/app.css').text
